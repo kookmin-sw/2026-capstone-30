@@ -28,7 +28,9 @@
 
 #### 8️⃣ [📂 폴더 구조](#-폴더-구조)
 
-#### 9️⃣ [📝 참고 자료](#-참고-자료)
+#### 9️⃣ [📒 노션](#-노션)
+
+#### 🔟 [📝 참고 자료](#-참고-자료)
 
 ---
 
@@ -96,7 +98,7 @@
 ### 🍳 맞춤형 레시피 추천 및 안내
 
 - 인식된 식재료 기반 즉시 조리 가능한 최적 레시피 매칭
-- YouTube Data API 연동으로 신뢰도 높은 요리 영상 링크 제공
+- 유튜브 링크 연동으로 신뢰도 높은 요리 영상 링크 제공
 - 메뉴 선정 고민 해결 및 영상 가이드를 통한 직관적인 요리 경험
 
 ### 🔄 대체 식재료 안내 기능
@@ -165,7 +167,7 @@ Google Gemini API
   ▼
 [Node.js 백엔드 서버]
   ├── 레시피 매칭 엔진 (MySQL DB)
-  ├── YouTube Data API 연동
+  ├── 유튜브 링크 연동
   ├── 쇼핑몰 링크 연동
   └── FCM 푸시 알림 서버
 ```
@@ -182,7 +184,7 @@ Google Gemini API
 | **Backend** | Node.js, Express, REST API |
 | **Database** | MySQL |
 | **AI** | Google Gemini API (Vision) |
-| **External API** | YouTube Data API, 쇼핑몰 API |
+| **External API** | 유튜브 링크, 쇼핑몰 API |
 | **Infrastructure** | FCM (Firebase Cloud Messaging) |
 | **운영체제** | Windows 11 |
 | **협업 도구** | Git, Notion |
@@ -263,6 +265,12 @@ capstone/
     ├── config.js                    # 환경 설정
     └── package.json                 # 서버 의존성
 ```
+
+---
+
+## 📒 노션
+
+[노션 링크](https://www.notion.so/3364608f68978062affde98e98c3aedd)
 
 ---
 
