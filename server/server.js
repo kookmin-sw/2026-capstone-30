@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const { config } = require('./config');
+const db = require('./db');
 
 const app = express();
 
@@ -88,6 +89,10 @@ function extractJson(text) {
   throw new Error('JSON을 찾을 수 없습니다.');
 }
 
+// =============================================
+// AI 엔드포인트 (기존 4개)
+// =============================================
+
 // 서버 상태 확인
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -121,7 +126,7 @@ app.post('/api/analyze', rateLimiter, upload.single('image'), async (req, res) =
           },
         ],
       },
-    ], 3, 300); // 재료 목록은 300 토큰으로 충분
+    ], 3, 300);
 
     const data = await response.json();
     console.log(`[/api/analyze] OpenRouter 응답 status: ${response.status}`);
@@ -203,7 +208,7 @@ ${userContext ? `사용자 정보: ${userContext}` : ''}${prevInfo}
     const response = await callOpenRouter([
       { role: 'system', content: '전문 요리사로서 JSON 형식으로만 응답합니다.' },
       { role: 'user', content: prompt },
-    ], 3, 1500); // 레시피 추천은 1500 토큰
+    ], 3, 1500);
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content ?? '';
@@ -241,7 +246,7 @@ youtubeQueries는 이 레시피를 유튜브에서 검색할 때 좋은 한국�
     const response = await callOpenRouter([
       { role: 'system', content: '전문 요리사로서 JSON 형식으로만 응답합니다.' },
       { role: 'user', content: prompt },
-    ], 3, 2000); // 레시피 상세는 2000 토큰
+    ], 3, 2000);
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content ?? '';
@@ -259,6 +264,224 @@ youtubeQueries는 이 레시피를 유튜브에서 검색할 때 좋은 한국�
   } catch (error) {
     console.error('[/api/recipe-detail]', error.message);
     res.status(500).json({ error: '레시피 상세 정보를 가져오는데 실패했습니다.' });
+  }
+});
+
+// =============================================
+// DB 엔드포인트 (10개)
+// =============================================
+
+// 아이디 중복 확인
+app.get('/api/check-username/:username', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT user_id FROM users WHERE username = ?',
+      [req.params.username]
+    );
+    res.json({ available: rows.length === 0 });
+  } catch (error) {
+    console.error('[/api/check-username]', error.message);
+    res.status(500).json({ error: '중복 확인 실패' });
+  }
+});
+
+// 회원가입
+app.post('/api/register', async (req, res) => {
+  const { username, password_hash, nickname } = req.body;
+
+  if (!username || !password_hash || !nickname) {
+    return res.status(400).json({ error: '아이디, 비밀번호, 닉네임이 필요합니다.' });
+  }
+
+  try {
+    const [result] = await db.query(
+      'INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?)',
+      [username, password_hash, nickname]
+    );
+    res.json({ user_id: result.insertId });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: '이미 존재하는 아이디입니다.' });
+    }
+    console.error('[/api/register]', error.message);
+    res.status(500).json({ error: '회원가입 실패' });
+  }
+});
+
+// 로그인
+app.post('/api/login', async (req, res) => {
+  const { username, password_hash } = req.body;
+
+  if (!username || !password_hash) {
+    return res.status(400).json({ error: '아이디와 비밀번호가 필요합니다.' });
+  }
+
+  try {
+    const [rows] = await db.query(
+      'SELECT user_id, username, nickname, diet_type FROM users WHERE username = ? AND password_hash = ?',
+      [username, password_hash]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: '아이디 또는 비밀번호가 틀렸습니다.' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('[/api/login]', error.message);
+    res.status(500).json({ error: '로그인 실패' });
+  }
+});
+
+// 프로필 조회 (알레르기 + 선호장르 포함)
+app.get('/api/users/:userId/profile', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const [users] = await db.query(
+      'SELECT user_id, username, nickname, diet_type FROM users WHERE user_id = ?',
+      [userId]
+    );
+    if (users.length === 0) return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+
+    const [allergies] = await db.query(
+      `SELECT a.allergy_id, a.name FROM user_allergies ua
+       JOIN allergies a ON ua.allergy_id = a.allergy_id WHERE ua.user_id = ?`,
+      [userId]
+    );
+
+    const [cuisines] = await db.query(
+      `SELECT c.cuisine_id, c.name FROM user_preferred_cuisines upc
+       JOIN cuisines c ON upc.cuisine_id = c.cuisine_id WHERE upc.user_id = ?`,
+      [userId]
+    );
+
+    res.json({ ...users[0], allergies, preferred_cuisines: cuisines });
+  } catch (error) {
+    console.error('[/api/users/profile]', error.message);
+    res.status(500).json({ error: '프로필 조회 실패' });
+  }
+});
+
+// 프로필 수정 (식단 + 알레르기 + 선호장르)
+app.put('/api/users/:userId/profile', async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const userId = req.params.userId;
+    const { diet_type, allergy_ids, cuisine_ids } = req.body;
+
+    await conn.beginTransaction();
+
+    if (diet_type) {
+      await conn.query('UPDATE users SET diet_type = ? WHERE user_id = ?', [diet_type, userId]);
+    }
+
+    if (Array.isArray(allergy_ids)) {
+      await conn.query('DELETE FROM user_allergies WHERE user_id = ?', [userId]);
+      for (const id of allergy_ids) {
+        await conn.query('INSERT INTO user_allergies (user_id, allergy_id) VALUES (?, ?)', [userId, id]);
+      }
+    }
+
+    if (Array.isArray(cuisine_ids)) {
+      await conn.query('DELETE FROM user_preferred_cuisines WHERE user_id = ?', [userId]);
+      for (const id of cuisine_ids) {
+        await conn.query('INSERT INTO user_preferred_cuisines (user_id, cuisine_id) VALUES (?, ?)', [userId, id]);
+      }
+    }
+
+    await conn.commit();
+    res.json({ message: '프로필 수정 완료' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('[/api/users/profile PUT]', error.message);
+    res.status(500).json({ error: '프로필 수정 실패' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 알레르기 목록
+app.get('/api/allergies', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM allergies ORDER BY name');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: '알레르기 목록 조회 실패' });
+  }
+});
+
+// 요리 장르 목록
+app.get('/api/cuisines', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM cuisines ORDER BY name');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: '요리 장르 목록 조회 실패' });
+  }
+});
+
+// 식재료 저장 (이름만)
+app.post('/api/ingredients', async (req, res) => {
+  const { user_id, ingredients } = req.body;
+
+  if (!user_id || !Array.isArray(ingredients) || ingredients.length === 0) {
+    return res.status(400).json({ error: 'user_id와 재료 목록이 필요합니다.' });
+  }
+
+  try {
+    const ids = [];
+    for (const item of ingredients) {
+      const [result] = await db.query(
+        'INSERT INTO ingredients (user_id, name) VALUES (?, ?)',
+        [user_id, item.name]
+      );
+      ids.push(result.insertId);
+    }
+    res.json({ count: ingredients.length, ids });
+  } catch (error) {
+    console.error('[/api/ingredients POST]', error.message);
+    res.status(500).json({ error: '식재료 저장 실패' });
+  }
+});
+
+// 내 냉장고 조회
+app.get('/api/ingredients/:userId', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM ingredients WHERE user_id = ? ORDER BY created_at DESC',
+      [req.params.userId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('[/api/ingredients GET]', error.message);
+    res.status(500).json({ error: '냉장고 조회 실패' });
+  }
+});
+
+// 식재료 삭제
+app.delete('/api/ingredients/:ingredientId', async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM ingredients WHERE ingredient_id = ?',
+      [req.params.ingredientId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: '식재료를 찾을 수 없습니다.' });
+    res.json({ message: '삭제 완료' });
+  } catch (error) {
+    console.error('[/api/ingredients DELETE]', error.message);
+    res.status(500).json({ error: '식재료 삭제 실패' });
+  }
+});
+
+// FCM 토큰 저장
+app.put('/api/users/:userId/fcm-token', async (req, res) => {
+  try {
+    await db.query('UPDATE users SET fcm_token = ? WHERE user_id = ?', [req.body.fcm_token, req.params.userId]);
+    res.json({ message: 'FCM 토큰 저장 완료' });
+  } catch (error) {
+    console.error('[/api/users/fcm-token]', error.message);
+    res.status(500).json({ error: 'FCM 토큰 저장 실패' });
   }
 });
 
