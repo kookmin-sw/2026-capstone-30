@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 import '../models/recipe.dart';
@@ -8,12 +9,15 @@ import '../models/user_profile.dart';
 class ApiService {
   static const _timeout = Duration(seconds: 60);
 
+  static String hashPassword(String pw) =>
+      sha256.convert(utf8.encode(pw)).toString();
+
   Future<void> checkConnection() async {
     try {
-      final response = await http
+      final res = await http
           .get(Uri.parse('$kBaseUrl/api/health'))
           .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) throw Exception('서버 응답 오류');
+      if (res.statusCode != 200) throw Exception('서버 응답 오류');
     } catch (_) {
       throw Exception('서버에 연결할 수 없습니다.\n서버가 실행 중인지 확인하세요.\n(URL: $kBaseUrl)');
     }
@@ -35,7 +39,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       return List<String>.from(data['ingredients'] ?? []);
     }
-    throw Exception(_errorMessage(response));
+    throw Exception(_errorMsg(response));
   }
 
   Future<List<Recipe>> getRecipes(
@@ -59,7 +63,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       return (data['recipes'] as List).map((r) => Recipe.fromJson(r)).toList();
     }
-    throw Exception(_errorMessage(response));
+    throw Exception(_errorMsg(response));
   }
 
   Future<RecipeDetail> getRecipeDetail(
@@ -80,15 +84,124 @@ class ApiService {
     if (response.statusCode == 200) {
       return RecipeDetail.fromJson(jsonDecode(response.body));
     }
-    throw Exception(_errorMessage(response));
+    throw Exception(_errorMsg(response));
   }
 
-  String _errorMessage(http.Response response) {
+  Future<bool> checkUsername(String username) async {
+    final res = await http
+        .get(Uri.parse('$kBaseUrl/api/check-username/$username'))
+        .timeout(const Duration(seconds: 5));
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['available'] == true;
+    }
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<int> register(String username, String password, String nickname) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'username': username,
+            'password_hash': hashPassword(password),
+            'nickname': nickname,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) return jsonDecode(res.body)['user_id'];
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'username': username,
+            'password_hash': hashPassword(password),
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<UserProfile> getProfile(int userId) async {
+    final res = await http
+        .get(Uri.parse('$kBaseUrl/api/users/$userId/profile'))
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      return UserProfile.fromServerJson(jsonDecode(res.body));
+    }
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<void> updateProfile(
+    int userId, String dietType, List<int> allergyIds, List<int> cuisineIds,
+  ) async {
+    final res = await http
+        .put(
+          Uri.parse('$kBaseUrl/api/users/$userId/profile'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'diet_type': dietType,
+            'allergy_ids': allergyIds,
+            'cuisine_ids': cuisineIds,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode != 200) throw Exception(_errorMsg(res));
+  }
+
+  Future<Map<String, dynamic>> saveIngredients(int userId, List<String> names) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/ingredients'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'ingredients': names.map((n) => {'name': n}).toList(),
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<List<Map<String, dynamic>>> getIngredients(int userId) async {
+    final res = await http
+        .get(Uri.parse('$kBaseUrl/api/ingredients/$userId'))
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      return (jsonDecode(res.body) as List)
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<void> deleteIngredient(int ingredientId) async {
+    final res = await http
+        .delete(Uri.parse('$kBaseUrl/api/ingredients/$ingredientId'))
+        .timeout(_timeout);
+
+    if (res.statusCode != 200) throw Exception(_errorMsg(res));
+  }
+
+  String _errorMsg(http.Response res) {
     try {
-      final data = jsonDecode(response.body);
-      return data['error'] ?? '서버 오류 (${response.statusCode})';
+      return jsonDecode(res.body)['error'] ?? '서버 오류 (${res.statusCode})';
     } catch (_) {
-      return '서버 오류 (${response.statusCode})';
+      return '서버 오류 (${res.statusCode})';
     }
   }
 }

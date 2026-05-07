@@ -7,6 +7,28 @@ class StorageService {
   static const _savedKey = 'saved_recipes';
   static const _profileKey = 'user_profile';
   static const _ingredientsKey = 'ingredients';
+  static const _loginKey = 'login_info';
+
+  Future<void> saveLoginInfo(int userId, String username, String nickname) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_loginKey, jsonEncode({
+      'userId': userId,
+      'username': username,
+      'nickname': nickname,
+    }));
+  }
+
+  Future<Map<String, dynamic>?> getLoginInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_loginKey);
+    if (raw == null) return null;
+    return Map<String, dynamic>.from(jsonDecode(raw));
+  }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_loginKey);
+  }
 
   Future<List<RecipeDetail>> getSavedRecipes() async {
     final prefs = await SharedPreferences.getInstance();

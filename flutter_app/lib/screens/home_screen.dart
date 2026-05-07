@@ -18,9 +18,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   File? _image;
-  List<String> _ingredients = [];
+  List<Map<String, dynamic>> _ingredients = [];
   List<Recipe> _recipes = [];
-  List<String> _previousRecipes = [];
+  List<String> _prevRecipes = [];
   bool _isAnalyzing = false;
   bool _isLoadingRecipes = false;
 
@@ -28,15 +28,33 @@ class _HomeScreenState extends State<HomeScreen> {
   final _storage = StorageService();
   final _picker = ImagePicker();
 
+  int? _userId;
+
   @override
   void initState() {
     super.initState();
-    _storage.getIngredients().then((list) {
-      if (list.isNotEmpty) setState(() => _ingredients = list);
-    });
+    _init();
   }
 
-  // 말풍선 메시지 (상태에 따라 변경)
+  Future<void> _init() async {
+    final info = await _storage.getLoginInfo();
+    if (info != null) {
+      _userId = info['userId'];
+      await _loadIngredients();
+    }
+  }
+
+  Future<void> _loadIngredients() async {
+    if (_userId == null) return;
+    try {
+      final list = await _api.getIngredients(_userId!);
+      if (mounted) setState(() => _ingredients = list);
+    } catch (_) {}
+  }
+
+  List<String> get _names =>
+      _ingredients.map((e) => e['name'] as String).toList();
+
   String get _catMessage {
     if (_isAnalyzing) return '재료를 열심히 분석하고 있어요! 잠깐만요';
     if (_isLoadingRecipes) return '어떤 레시피가 맛있을지 생각 중이에요...';
@@ -46,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return '냉장고 사진을 찍어주세요!\n제가 레시피를 추천해드릴게요';
   }
 
-  // 이미지 소스 선택 바텀 시트
   void _showSourceSheet() {
     showModalBottomSheet(
       context: context,
@@ -89,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 이미지 선택 및 AI 분석
   Future<void> _pickImage(ImageSource source) async {
     final xFile = await _picker.pickImage(
       source: source,
@@ -101,23 +117,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _image = File(xFile.path);
-      _ingredients = [];
       _recipes = [];
       _isAnalyzing = true;
     });
 
     try {
       final result = await _api.analyzeImage(_image!);
-      setState(() { _ingredients = result; _isAnalyzing = false; });
-      await _storage.saveIngredients(result);
+      if (_userId != null && result.isNotEmpty) {
+        await _api.saveIngredients(_userId!, result);
+        await _loadIngredients();
+      }
+      setState(() => _isAnalyzing = false);
     } catch (e) {
       setState(() => _isAnalyzing = false);
-      final msg = e.toString().replaceFirst('Exception: ', '');
-      _showError(msg);
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
-  // 레시피 추천
   Future<void> _getRecipes() async {
     if (_ingredients.isEmpty) {
       _showError('재료를 먼저 추가해주세요.');
@@ -126,11 +142,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoadingRecipes = true);
     try {
       final profile = await _storage.getProfile();
-      final recipes = await _api.getRecipes(_ingredients, _previousRecipes, profile);
+      final recipes = await _api.getRecipes(_names, _prevRecipes, profile);
       setState(() {
         _recipes = recipes;
-        _previousRecipes = [
-          ..._previousRecipes,
+        _prevRecipes = [
+          ..._prevRecipes,
           ...recipes.map((r) => r.name),
         ].take(10).toList();
         _isLoadingRecipes = false;
@@ -146,12 +162,15 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  void _removeIngredient(String item) {
+  void _removeIngredient(Map<String, dynamic> item) async {
+    final id = item['ingredient_id'];
+    if (id != null) {
+      try { await _api.deleteIngredient(id); } catch (_) {}
+    }
     setState(() => _ingredients.remove(item));
-    _storage.saveIngredients(_ingredients);
   }
 
-  void _showAddIngredient() {
+  void _showAddDialog() {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
@@ -166,13 +185,15 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               final t = ctrl.text.trim();
-              if (t.isNotEmpty && !_ingredients.contains(t)) {
-                setState(() => _ingredients.add(t));
-                _storage.saveIngredients(_ingredients);
+              if (t.isNotEmpty && !_names.contains(t) && _userId != null) {
+                try {
+                  await _api.saveIngredients(_userId!, [t]);
+                  await _loadIngredients();
+                } catch (_) {}
               }
-              Navigator.pop(context);
+              if (mounted) Navigator.pop(context);
             },
             child: const Text('추가'),
           ),
@@ -187,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: kBackground,
       body: CustomScrollView(
         slivers: [
-          // 앱바
           SliverAppBar(
             expandedHeight: 140,
             pinned: true,
@@ -219,71 +239,55 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // 본문
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-
-                // 이미지 업로드 영역
                 _ImageUploadCard(
                   image: _image,
                   isAnalyzing: _isAnalyzing,
                   onTap: _showSourceSheet,
                 ),
                 const SizedBox(height: 12),
+                _CatBubble(message: _catMessage),
+                const SizedBox(height: 12),
 
-                // 고양이 마스코트 말풍선 섹션
-                _CatMascotRow(message: _catMessage),
-                const SizedBox(height: 16),
-
-                // 재료 목록
-                if (_isAnalyzing || _ingredients.isNotEmpty)
+                if (_ingredients.isNotEmpty || _isAnalyzing)
                   _IngredientsCard(
-                    ingredients: _ingredients,
+                    ingredients: _names,
                     isAnalyzing: _isAnalyzing,
-                    onRemove: _removeIngredient,
-                    onAdd: _showAddIngredient,
+                    onRemove: (name) {
+                      final item = _ingredients.firstWhere(
+                        (e) => e['name'] == name, orElse: () => {},
+                      );
+                      if (item.isNotEmpty) _removeIngredient(item);
+                    },
+                    onAdd: _showAddDialog,
                   ),
 
-                if (!_isAnalyzing && _ingredients.isNotEmpty) ...[
+                if (_ingredients.isNotEmpty && !_isAnalyzing) ...[
                   const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: _isLoadingRecipes ? null : _getRecipes,
-                    icon: _isLoadingRecipes
-                        ? const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.restaurant_menu),
-                    label: Text(_isLoadingRecipes ? '레시피 찾는 중...' : '레시피 추천받기'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  SizedBox(
+                    width: double.infinity, height: 52,
+                    child: FilledButton.icon(
+                      onPressed: _isLoadingRecipes ? null : _getRecipes,
+                      icon: _isLoadingRecipes
+                          ? const SizedBox(width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.restaurant_menu),
+                      label: Text(_isLoadingRecipes ? '추천 중...' : '레시피 추천받기'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kPrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
 
-                if (_recipes.isNotEmpty && !_isLoadingRecipes) ...[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _getRecipes,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('다른 레시피 추천받기'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      foregroundColor: kPrimary,
-                      side: const BorderSide(color: kPrimary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
+                if (_recipes.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  Text(
-                    '추천 레시피 ${_recipes.length}개',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   ..._recipes.map((r) => _RecipeCard(
                         recipe: r,
@@ -292,13 +296,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(
                             builder: (_) => RecipeDetailScreen(
                               recipeName: r.name,
-                              ingredients: _ingredients,
+                              ingredients: _names,
                             ),
                           ),
                         ),
                       )),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoadingRecipes ? null : _getRecipes,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('다른 레시피 추천받기'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kPrimary,
+                        side: const BorderSide(color: kPrimary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
                 ],
-
                 const SizedBox(height: 32),
               ]),
             ),
@@ -309,119 +325,57 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// 고양이 마스코트 + 말풍선
-class _CatMascotRow extends StatelessWidget {
+class _CatBubble extends StatelessWidget {
   final String message;
-  const _CatMascotRow({required this.message});
+  const _CatBubble({required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // 냉장고 이미지 (배경 제거된 형태)
-        Image.asset(
-          'assets/main.png',
-          height: 100,
-          fit: BoxFit.contain,
-        ),
-        const SizedBox(width: 10),
-        // 말풍선
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                    bottomLeft: Radius.circular(4),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.07),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(color: kPrimary.withOpacity(0.2)),
-                ),
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF333333),
-                    height: 1.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+                bottomRight: Radius.circular(4),
               ),
-              // 말풍선 꼬리 (왼쪽 아래)
-              Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: CustomPaint(
-                  painter: _SpeechTailPainter(),
-                  child: const SizedBox(width: 12, height: 8),
-                ),
-              ),
-            ],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+            ),
+            child: Text(message, style: const TextStyle(fontSize: 14, height: 1.5)),
           ),
         ),
+        const SizedBox(width: 8),
+        const Text('🐱', style: TextStyle(fontSize: 36)),
       ],
     );
   }
 }
 
-class _SpeechTailPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 흰 채우기
-    final fill = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    // 테두리
-    final stroke = Paint()
-      ..color = kPrimary.withOpacity(0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(0, size.height)
-      ..close();
-
-    canvas.drawPath(path, fill);
-    canvas.drawPath(path, stroke);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// 위젯: 이미지 업로드 카드
 class _ImageUploadCard extends StatelessWidget {
   final File? image;
   final bool isAnalyzing;
   final VoidCallback onTap;
 
-  const _ImageUploadCard({required this.image, required this.isAnalyzing, required this.onTap});
+  const _ImageUploadCard({
+    required this.image, required this.isAnalyzing, required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 200,
+        height: 220,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kPrimary.withOpacity(0.3), width: 2),
+          border: image == null ? Border.all(color: kPrimary.withOpacity(0.3), width: 2, strokeAlign: BorderSide.strokeAlignInside) : null,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: image != null
@@ -476,7 +430,6 @@ class _ImageUploadCard extends StatelessWidget {
   }
 }
 
-// 위젯: 재료 목록 카드
 class _IngredientsCard extends StatelessWidget {
   final List<String> ingredients;
   final bool isAnalyzing;
@@ -484,10 +437,8 @@ class _IngredientsCard extends StatelessWidget {
   final VoidCallback onAdd;
 
   const _IngredientsCard({
-    required this.ingredients,
-    required this.isAnalyzing,
-    required this.onRemove,
-    required this.onAdd,
+    required this.ingredients, required this.isAnalyzing,
+    required this.onRemove, required this.onAdd,
   });
 
   @override
@@ -502,22 +453,18 @@ class _IngredientsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.kitchen, color: kPrimary),
-              const SizedBox(width: 8),
-              Text(
-                '발견된 재료 (${ingredients.length}개)',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add_circle_outline, color: kPrimary),
-                tooltip: '재료 추가',
-              ),
-            ],
-          ),
+          Row(children: [
+            const Icon(Icons.kitchen, color: kPrimary),
+            const SizedBox(width: 8),
+            Text('발견된 재료 (${ingredients.length}개)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            IconButton(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_circle_outline, color: kPrimary),
+              tooltip: '재료 추가',
+            ),
+          ]),
           const SizedBox(height: 8),
           if (isAnalyzing)
             const Center(child: Padding(
@@ -526,8 +473,7 @@ class _IngredientsCard extends StatelessWidget {
             ))
           else
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 8, runSpacing: 8,
               children: ingredients.map((item) => Chip(
                 label: Text(item),
                 deleteIcon: const Icon(Icons.close, size: 16),
@@ -544,11 +490,9 @@ class _IngredientsCard extends StatelessWidget {
   }
 }
 
-// 위젯: 레시피 카드
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback onTap;
-
   const _RecipeCard({required this.recipe, required this.onTap});
 
   @override
@@ -568,23 +512,17 @@ class _RecipeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(recipe.name,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
-              ),
+              Row(children: [
+                Expanded(child: Text(recipe.name,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
+                const Icon(Icons.chevron_right, color: Colors.grey),
+              ]),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  _Badge(icon: Icons.timer_outlined, text: recipe.time),
-                  const SizedBox(width: 8),
-                  _Badge(icon: Icons.bar_chart, text: recipe.difficulty),
-                ],
-              ),
+              Row(children: [
+                _Badge(icon: Icons.timer_outlined, text: recipe.time),
+                const SizedBox(width: 8),
+                _Badge(icon: Icons.bar_chart, text: recipe.difficulty),
+              ]),
               if (recipe.description.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(recipe.description,
@@ -593,17 +531,13 @@ class _RecipeCard extends StatelessWidget {
               ],
               if (recipe.available.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Wrap(
-                  spacing: 4, runSpacing: 4,
-                  children: recipe.available.take(6).map((i) => _IngredientTag(text: i, available: true)).toList(),
-                ),
+                Wrap(spacing: 4, runSpacing: 4,
+                  children: recipe.available.take(6).map((i) => _Tag(text: i, have: true)).toList()),
               ],
               if (recipe.additional.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4, runSpacing: 4,
-                  children: recipe.additional.take(3).map((i) => _IngredientTag(text: '+$i', available: false)).toList(),
-                ),
+                Wrap(spacing: 4, runSpacing: 4,
+                  children: recipe.additional.take(3).map((i) => _Tag(text: '+$i', have: false)).toList()),
               ],
             ],
           ),
@@ -616,43 +550,35 @@ class _RecipeCard extends StatelessWidget {
 class _Badge extends StatelessWidget {
   final IconData icon;
   final String text;
-
   const _Badge({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: Colors.grey[600]),
+      const SizedBox(width: 4),
+      Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+    ]),
+  );
 }
 
-class _IngredientTag extends StatelessWidget {
+class _Tag extends StatelessWidget {
   final String text;
-  final bool available;
-
-  const _IngredientTag({required this.text, required this.available});
+  final bool have;
+  const _Tag({required this.text, required this.have});
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: available ? kAccentLight : const Color(0xFFE8F0FE),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            color: available ? const Color(0xFF2A7D52) : const Color(0xFF1A56A0),
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: have ? kAccentLight : const Color(0xFFE8F0FE),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text(text, style: TextStyle(
+      fontSize: 11,
+      color: have ? const Color(0xFF2A7D52) : const Color(0xFF1A56A0),
+    )),
+  );
 }

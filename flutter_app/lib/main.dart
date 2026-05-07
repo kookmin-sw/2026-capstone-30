@@ -3,6 +3,8 @@ import 'constants.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
 import 'screens/profile_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/storage_service.dart';
 
 void main() {
   runApp(const FridgeRecipeApp());
@@ -24,13 +26,49 @@ class FridgeRecipeApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Pretendard',
       ),
-      home: const MainNavigator(),
+      home: const AuthGate(),
     );
   }
 }
 
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  final _storage = StorageService();
+  bool _loggedIn = false;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final info = await _storage.getLoginInfo();
+    setState(() { _loggedIn = info != null; _checking = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_loggedIn) {
+      return MainNavigator(onLogout: () => setState(() => _loggedIn = false));
+    }
+    return LoginScreen(onLoginSuccess: () => setState(() => _loggedIn = true));
+  }
+}
+
 class MainNavigator extends StatefulWidget {
-  const MainNavigator({super.key});
+  final VoidCallback onLogout;
+  const MainNavigator({super.key, required this.onLogout});
 
   @override
   State<MainNavigator> createState() => _MainNavigatorState();
@@ -48,7 +86,7 @@ class _MainNavigatorState extends State<MainNavigator> {
         children: [
           const HomeScreen(),
           SavedScreen(key: _savedKey),
-          const ProfileScreen(),
+          ProfileScreen(onLogout: widget.onLogout),
         ],
       ),
       bottomNavigationBar: NavigationBar(

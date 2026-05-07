@@ -1,7 +1,5 @@
--- =============================================
 -- 냉집사 (NaengJibsa) Database Schema
--- DBMS: MySQL 8.0+
--- =============================================
+-- MySQL 8.0+
 
 CREATE DATABASE IF NOT EXISTS naengjibsa
   DEFAULT CHARACTER SET utf8mb4
@@ -9,9 +7,7 @@ CREATE DATABASE IF NOT EXISTS naengjibsa
 
 USE naengjibsa;
 
--- =============================================
--- 1. users: 사용자 정보 + 식단 유형 + FCM
--- =============================================
+-- 사용자 정보 + 식단 유형 + FCM
 CREATE TABLE users (
     user_id      INT           AUTO_INCREMENT PRIMARY KEY,
     username     VARCHAR(50)   NOT NULL UNIQUE,
@@ -23,9 +19,7 @@ CREATE TABLE users (
     updated_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- =============================================
--- 2. allergies: 알레르기 코드 테이블
--- =============================================
+-- 알레르기 코드 테이블
 CREATE TABLE allergies (
     allergy_id   INT           AUTO_INCREMENT PRIMARY KEY,
     name         VARCHAR(100)  NOT NULL UNIQUE
@@ -36,9 +30,7 @@ INSERT INTO allergies (name) VALUES
     ('견과류'), ('유제품'), ('해산물'),
     ('밀'), ('계란'), ('대두');
 
--- =============================================
--- 3. user_allergies: 사용자-알레르기 매핑 (N:M)
--- =============================================
+-- 사용자-알레르기 매핑 (N:M)
 CREATE TABLE user_allergies (
     user_allergy_id INT       AUTO_INCREMENT PRIMARY KEY,
     user_id         INT       NOT NULL,
@@ -48,9 +40,7 @@ CREATE TABLE user_allergies (
     UNIQUE KEY uq_user_allergy (user_id, allergy_id)
 ) ENGINE=InnoDB;
 
--- =============================================
--- 4. cuisines: 요리 장르 코드 테이블
--- =============================================
+-- 요리 장르 코드 테이블
 CREATE TABLE cuisines (
     cuisine_id   INT           AUTO_INCREMENT PRIMARY KEY,
     name         VARCHAR(100)  NOT NULL UNIQUE
@@ -60,9 +50,7 @@ CREATE TABLE cuisines (
 INSERT INTO cuisines (name) VALUES
     ('한식'), ('중식'), ('양식'), ('일식');
 
--- =============================================
--- 5. user_preferred_cuisines: 사용자-선호장르 매핑 (N:M)
--- =============================================
+-- 사용자-선호장르 매핑 (N:M)
 CREATE TABLE user_preferred_cuisines (
     user_cuisine_id INT       AUTO_INCREMENT PRIMARY KEY,
     user_id         INT       NOT NULL,
@@ -72,10 +60,7 @@ CREATE TABLE user_preferred_cuisines (
     UNIQUE KEY uq_user_cuisine (user_id, cuisine_id)
 ) ENGINE=InnoDB;
 
--- =============================================
--- 6. ingredients: 냉장고 속 식재료 (단순화)
---    행이 있으면 보유, DELETE하면 없음
--- =============================================
+-- 냉장고 속 식재료 (행이 있으면 보유, 삭제하면 없음)
 CREATE TABLE ingredients (
     ingredient_id INT          AUTO_INCREMENT PRIMARY KEY,
     user_id       INT          NOT NULL,

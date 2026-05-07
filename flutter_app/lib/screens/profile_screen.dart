@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../models/user_profile.dart';
+import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback onLogout;
+  const ProfileScreen({super.key, required this.onLogout});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _nicknameCtrl = TextEditingController();
   UserProfile _profile = UserProfile();
   bool _isLoading = true;
   bool _isSaving = false;
 
+  final _api = ApiService();
   final _storage = StorageService();
+
+  int? _userId;
 
   static const _allergies = ['견과류', '유제품', '해산물', '밀', '계란', '대두'];
   static const _dietary = ['없음', '채식', '비건', '할랄'];
@@ -28,31 +32,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _nicknameCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
-    final p = await _storage.getProfile();
-    if (!mounted) return;
-    setState(() {
-      _profile = p;
-      _nicknameCtrl.text = p.nickname;
-      _isLoading = false;
-    });
+    final info = await _storage.getLoginInfo();
+    if (info == null) return;
+    _userId = info['userId'];
+
+    try {
+      final profile = await _api.getProfile(_userId!);
+      if (!mounted) return;
+      setState(() { _profile = profile; _isLoading = false; });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _profile = UserProfile(
+          userId: _userId,
+          username: info['username'] ?? '',
+          nickname: info['nickname'] ?? '',
+        );
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _save() async {
+    if (_userId == null) return;
     setState(() => _isSaving = true);
-    _profile.nickname = _nicknameCtrl.text.trim();
-    await _storage.saveProfile(_profile);
-    setState(() => _isSaving = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필이 저장되었습니다.')),
+
+    try {
+      await _api.updateProfile(
+        _userId!,
+        _profile.dietTypeEnglish,
+        _profile.allergyIds,
+        _profile.cuisineIds,
       );
+      await _storage.saveProfile(_profile);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('프로필이 저장되었습니다.'), backgroundColor: kPrimary),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: const Text('정말 로그아웃하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _storage.logout();
+      widget.onLogout();
     }
   }
 
@@ -80,44 +126,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // 닉네임
-                  _ProfileCard(
-                    title: '닉네임',
-                    child: TextField(
-                      controller: _nicknameCtrl,
-                      decoration: InputDecoration(
-                        hintText: '닉네임을 입력하세요',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
+                  _Card(
+                    title: '계정 정보',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.person, color: kPrimary, size: 20),
+                          const SizedBox(width: 8),
+                          Text('아이디: ${_profile.username}', style: const TextStyle(fontSize: 15)),
+                        ]),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          const Icon(Icons.face, color: kPrimary, size: 20),
+                          const SizedBox(width: 8),
+                          Text('닉네임: ${_profile.nickname}', style: const TextStyle(fontSize: 15)),
+                        ]),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // 알레르기
-                  _ProfileCard(
+                  _Card(
                     title: '알레르기',
                     child: Wrap(
                       spacing: 8, runSpacing: 6,
                       children: _allergies.map((a) {
-                        final selected = _profile.allergies.contains(a);
+                        final on = _profile.allergies.contains(a);
                         return FilterChip(
                           label: Text(a),
-                          selected: selected,
+                          selected: on,
                           onSelected: (v) => setState(() {
                             v ? _profile.allergies.add(a) : _profile.allergies.remove(a);
                           }),
                           selectedColor: kPrimary.withOpacity(0.15),
                           checkmarkColor: kPrimary,
-                          labelStyle: TextStyle(color: selected ? kPrimary : null),
+                          labelStyle: TextStyle(color: on ? kPrimary : null),
                         );
                       }).toList(),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // 식이 제한
-                  _ProfileCard(
+                  _Card(
                     title: '식이 제한',
                     child: Column(
                       children: _dietary.map((d) => RadioListTile<String>(
@@ -133,24 +184,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // 선호 요리
-                  _ProfileCard(
+                  _Card(
                     title: '선호 요리 종류',
                     child: Wrap(
                       spacing: 8, runSpacing: 6,
                       children: _cuisines.map((c) {
-                        final selected = _profile.preferredCuisines.contains(c);
+                        final on = _profile.preferredCuisines.contains(c);
                         return FilterChip(
                           label: Text(c),
-                          selected: selected,
+                          selected: on,
                           onSelected: (v) => setState(() {
                             v ? _profile.preferredCuisines.add(c) : _profile.preferredCuisines.remove(c);
                           }),
                           selectedColor: kPrimary.withOpacity(0.15),
                           checkmarkColor: kPrimary,
-                          labelStyle: TextStyle(color: selected ? kPrimary : null),
+                          labelStyle: TextStyle(color: on ? kPrimary : null),
                         );
                       }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity, height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.logout, color: Colors.red),
+                      label: const Text('로그아웃', style: TextStyle(color: Colors.red, fontSize: 16)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -161,28 +225,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
+class _Card extends StatelessWidget {
   final String title;
   final Widget child;
-
-  const _ProfileCard({required this.title, required this.child});
+  const _Card({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        child,
+      ],
+    ),
+  );
 }
