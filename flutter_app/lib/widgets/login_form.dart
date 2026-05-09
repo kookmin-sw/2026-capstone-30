@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
-class LoginScreen extends StatefulWidget {
+// 로그인이랑 회원가입 
+class LoginForm extends StatefulWidget {
   final VoidCallback onLoginSuccess;
-  const LoginScreen({super.key, required this.onLoginSuccess});
+  const LoginForm({super.key, required this.onLoginSuccess});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginForm> createState() => _LoginFormState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginFormState extends State<LoginForm> with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
 
   final _loginIdCtrl = TextEditingController();
@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     } catch (e) {
       _msg(e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -118,109 +118,91 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackground,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              Container(
-                width: 80, height: 80,
-                decoration: BoxDecoration(
-                  color: kPrimary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.kitchen, color: Colors.white, size: 40),
-              ),
-              const SizedBox(height: 16),
-              Text('냉집사',
-                style: GoogleFonts.jua(fontSize: 32, color: kPrimary, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text('AI 냉장고 관리 & 레시피 추천',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
-                ),
-                child: Column(
-                  children: [
-                    TabBar(
-                      controller: _tabCtrl,
-                      labelColor: kPrimary,
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: kPrimary,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      tabs: const [Tab(text: '로그인'), Tab(text: '회원가입')],
-                    ),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 200),
-                      child: [_buildLogin(), _buildRegister()][_tabCtrl.index],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: kAccentLight,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(children: const [
+            Icon(Icons.info_outline, size: 18, color: kPrimary),
+            SizedBox(width: 8),
+            Expanded(child: Text(
+              '로그인하면 다른 기기에서도 데이터를 이용할 수 있어요.',
+              style: TextStyle(fontSize: 13, color: kPrimary, height: 1.3),
+            )),
+          ]),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+          ),
+          child: TabBar(
+            controller: _tabCtrl,
+            labelColor: kPrimary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: kPrimary,
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            tabs: const [Tab(text: '로그인'), Tab(text: '회원가입')],
           ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: [_buildLogin(), _buildRegister()][_tabCtrl.index],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildLogin() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        _field(_loginIdCtrl, '아이디', Icons.person_outline),
-        const SizedBox(height: 16),
-        _field(_loginPwCtrl, '비밀번호', Icons.lock_outline, obscure: true, onSubmit: _login),
-        const SizedBox(height: 24),
-        _actionBtn('로그인', _login),
-      ]),
-    );
+    return Column(children: [
+      _field(_loginIdCtrl, '아이디', Icons.person_outline),
+      const SizedBox(height: 12),
+      _field(_loginPwCtrl, '비밀번호', Icons.lock_outline, obscure: true, onSubmit: _login),
+      const SizedBox(height: 16),
+      _actionBtn('로그인', _login),
+    ]);
   }
 
   Widget _buildRegister() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        Row(children: [
-          Expanded(child: _field(_regIdCtrl, '아이디', Icons.person_outline,
-            suffix: _idChecked
-                ? Icon(_idAvailable ? Icons.check_circle : Icons.cancel,
-                    color: _idAvailable ? kPrimary : Colors.red)
-                : null,
-          )),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 50,
-            child: OutlinedButton(
-              onPressed: _loading ? null : _checkId,
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: kPrimary),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('중복확인', style: TextStyle(color: kPrimary)),
+    return Column(children: [
+      Row(children: [
+        Expanded(child: _field(_regIdCtrl, '아이디', Icons.person_outline,
+          suffix: _idChecked
+              ? Icon(_idAvailable ? Icons.check_circle : Icons.cancel,
+                  color: _idAvailable ? kPrimary : Colors.red)
+              : null,
+        )),
+        const SizedBox(width: 8),
+        SizedBox(
+          height: 50,
+          child: OutlinedButton(
+            onPressed: _loading ? null : _checkId,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: kPrimary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
+            child: const Text('중복확인', style: TextStyle(color: kPrimary)),
           ),
-        ]),
-        const SizedBox(height: 12),
-        _field(_regPwCtrl, '비밀번호', Icons.lock_outline, obscure: true),
-        const SizedBox(height: 12),
-        _field(_regPwConfirmCtrl, '비밀번호 확인', Icons.lock_outline, obscure: true),
-        const SizedBox(height: 12),
-        _field(_regNicknameCtrl, '닉네임', Icons.face),
-        const SizedBox(height: 20),
-        _actionBtn('회원가입', _register),
+        ),
       ]),
-    );
+      const SizedBox(height: 12),
+      _field(_regPwCtrl, '비밀번호', Icons.lock_outline, obscure: true),
+      const SizedBox(height: 12),
+      _field(_regPwConfirmCtrl, '비밀번호 확인', Icons.lock_outline, obscure: true),
+      const SizedBox(height: 12),
+      _field(_regNicknameCtrl, '닉네임', Icons.face),
+      const SizedBox(height: 16),
+      _actionBtn('회원가입', _register),
+    ]);
   }
 
   Widget _field(TextEditingController ctrl, String label, IconData icon,
@@ -233,6 +215,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         prefixIcon: Icon(icon),
         suffixIcon: suffix,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       ),
       onSubmitted: onSubmit != null ? (_) => onSubmit() : null,
     );
@@ -240,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _actionBtn(String text, VoidCallback onTap) {
     return SizedBox(
-      width: double.infinity, height: 50,
+      width: double.infinity, height: 48,
       child: FilledButton(
         onPressed: _loading ? null : onTap,
         style: FilledButton.styleFrom(
@@ -248,9 +232,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: _loading
-            ? const SizedBox(width: 24, height: 24,
+            ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            : Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
       ),
     );
   }

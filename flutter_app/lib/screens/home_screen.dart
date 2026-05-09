@@ -4,20 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
-import '../models/user_profile.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'recipe_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool loggedIn;
+  const HomeScreen({super.key, required this.loggedIn});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   File? _image;
+  // ingredient_id로 판단하기, null이면 로컬(비로그인), 값 있으면 DB(로그인)
   List<Map<String, dynamic>> _ingredients = [];
   List<Recipe> _recipes = [];
   List<String> _prevRecipes = [];
@@ -36,24 +37,49 @@ class _HomeScreenState extends State<HomeScreen> {
     _init();
   }
 
-  Future<void> _init() async {
-    final info = await _storage.getLoginInfo();
-    if (info != null) {
-      _userId = info['userId'];
-      await _loadIngredients();
-    }
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.loggedIn != widget.loggedIn) _init();
   }
 
-  Future<void> _loadIngredients() async {
+  Future<void> reloadFromServer() => _init();
+
+  Future<void> _init() async {
+    if (widget.loggedIn) {
+      final info = await _storage.getLoginInfo();
+      if (info != null) {
+        _userId = info['userId'];
+        await _loadFromServer();
+        return;
+      }
+    }
+    _userId = null;
+    await _loadFromLocal();
+  }
+
+  Future<void> _loadFromServer() async {
     if (_userId == null) return;
     try {
       final list = await _api.getIngredients(_userId!);
       if (mounted) setState(() => _ingredients = list);
-    } catch (_) {}
+    } catch (_) {
+      await _loadFromLocal();
+    }
   }
 
-  List<String> get _names =>
-      _ingredients.map((e) => e['name'] as String).toList();
+  Future<void> _loadFromLocal() async {
+    final names = await _storage.getIngredients();
+    if (mounted) {
+      setState(() => _ingredients = names
+          .map((n) => <String, dynamic>{'ingredient_id': null, 'name': n})
+          .toList());
+    }
+  }
+
+  Future<void> _persistLocal() => _storage.saveIngredients(_names);
+
+  List<String> get _names => _ingredients.map((e) => e['name'] as String).toList();
 
   String get _catMessage {
     if (_isAnalyzing) return '재료를 열심히 분석하고 있어요! 잠깐만요';
@@ -123,9 +149,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final result = await _api.analyzeImage(_image!);
-      if (_userId != null && result.isNotEmpty) {
-        await _api.saveIngredients(_userId!, result);
-        await _loadIngredients();
+      if (result.isNotEmpty) {
+        if (widget.loggedIn && _userId != null) {
+          await _api.saveIngredients(_userId!, result);
+          await _loadFromServer();
+        } else {
+          // 비로그인: 메모리 + 로컬에 누적 (중복 제거)
+          final existing = _names.toSet();
+          for (final n in result) {
+            if (existing.add(n)) _ingredients.add({'ingredient_id': null, 'name': n});
+          }
+          await _persistLocal();
+        }
       }
       setState(() => _isAnalyzing = false);
     } catch (e) {
@@ -145,10 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final recipes = await _api.getRecipes(_names, _prevRecipes, profile);
       setState(() {
         _recipes = recipes;
-        _prevRecipes = [
-          ..._prevRecipes,
-          ...recipes.map((r) => r.name),
-        ].take(10).toList();
+        _prevRecipes = [..._prevRecipes, ...recipes.map((r) => r.name)].take(10).toList();
         _isLoadingRecipes = false;
       });
     } catch (e) {
@@ -164,10 +196,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _removeIngredient(Map<String, dynamic> item) async {
     final id = item['ingredient_id'];
-    if (id != null) {
+    if (widget.loggedIn && id != null) {
       try { await _api.deleteIngredient(id); } catch (_) {}
     }
     setState(() => _ingredients.remove(item));
+    if (!widget.loggedIn) await _persistLocal();
   }
 
   void _showAddDialog() {
@@ -187,11 +220,16 @@ class _HomeScreenState extends State<HomeScreen> {
           FilledButton(
             onPressed: () async {
               final t = ctrl.text.trim();
-              if (t.isNotEmpty && !_names.contains(t) && _userId != null) {
-                try {
-                  await _api.saveIngredients(_userId!, [t]);
-                  await _loadIngredients();
-                } catch (_) {}
+              if (t.isNotEmpty && !_names.contains(t)) {
+                if (widget.loggedIn && _userId != null) {
+                  try {
+                    await _api.saveIngredients(_userId!, [t]);
+                    await _loadFromServer();
+                  } catch (_) {}
+                } else {
+                  setState(() => _ingredients.add({'ingredient_id': null, 'name': t}));
+                  await _persistLocal();
+                }
               }
               if (mounted) Navigator.pop(context);
             },
