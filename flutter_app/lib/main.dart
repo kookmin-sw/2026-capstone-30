@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'constants.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
+import 'screens/shopping_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
@@ -42,6 +43,7 @@ class _MainNavigatorState extends State<MainNavigator> {
   int _index = 0;
   final _savedKey = GlobalKey<SavedScreenState>();
   final _homeKey = GlobalKey<HomeScreenState>();
+  final _shoppingKey = GlobalKey<ShoppingScreenState>();
 
   final _api = ApiService();
   final _storage = StorageService();
@@ -145,6 +147,7 @@ class _MainNavigatorState extends State<MainNavigator> {
             children: [
               HomeScreen(key: _homeKey, loggedIn: _loggedIn),
               SavedScreen(key: _savedKey),
+              ShoppingScreen(key: _shoppingKey),
               ProfileScreen(
                 loggedIn: _loggedIn,
                 onLoginSuccess: _onLoginSuccess,
@@ -168,6 +171,11 @@ class _MainNavigatorState extends State<MainNavigator> {
                 icon: Icon(Icons.bookmark_outline),
                 selectedIcon: Icon(Icons.bookmark),
                 label: '저장',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.shopping_cart_outlined),
+                selectedIcon: Icon(Icons.shopping_cart),
+                label: '쇼핑',
               ),
               NavigationDestination(
                 icon: Icon(Icons.person_outline),
