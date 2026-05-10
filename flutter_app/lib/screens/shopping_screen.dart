@@ -43,7 +43,7 @@ class ShoppingScreenState extends State<ShoppingScreen> {
 
   Future<void> _openCoupang(String ingredient) async {
     final uri = Uri.parse(
-      'https://www.coupang.com/np/search?q=${Uri.encodeComponent(ingredient)}',
+      'https://search.shopping.naver.com/search/all?query=${Uri.encodeComponent(ingredient)}',
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
@@ -277,9 +277,9 @@ class _IngredientTile extends StatelessWidget {
           : ElevatedButton.icon(
               onPressed: onCoupang,
               icon: const Icon(Icons.shopping_bag_outlined, size: 15),
-              label: const Text('쿠팡', style: TextStyle(fontSize: 13)),
+              label: const Text('구매', style: TextStyle(fontSize: 13)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE8231A),
+                backgroundColor: kPrimary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 minimumSize: Size.zero,

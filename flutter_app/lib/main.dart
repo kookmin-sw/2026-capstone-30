@@ -145,7 +145,11 @@ class _MainNavigatorState extends State<MainNavigator> {
           body: IndexedStack(
             index: _index,
             children: [
-              HomeScreen(key: _homeKey, loggedIn: _loggedIn),
+              HomeScreen(
+                key: _homeKey,
+                loggedIn: _loggedIn,
+                onAddToShopping: (ings, name) => _shoppingKey.currentState?.addItems(ings, name),
+              ),
               SavedScreen(key: _savedKey),
               ShoppingScreen(key: _shoppingKey),
               ProfileScreen(

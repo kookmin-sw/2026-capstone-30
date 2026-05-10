@@ -8,11 +8,15 @@ import '../services/storage_service.dart';
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeName;
   final List<String> ingredients;
+  final List<String> missingIngredients;
+  final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
 
   const RecipeDetailScreen({
     super.key,
     required this.recipeName,
     required this.ingredients,
+    this.missingIngredients = const [],
+    this.onAddToShopping,
   });
 
   @override
@@ -100,8 +104,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  Future<void> _openCoupang(String ingredient) async {
+    final uri = Uri.parse(
+      'https://search.shopping.naver.com/search/all?query=${Uri.encodeComponent(ingredient)}',
+    );
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('쿠팡을 열 수 없습니다.')),
+        );
+      }
+    }
+  }
+
   Widget _buildBody() {
     final d = _detail!;
+    final missing = widget.missingIngredients;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -114,6 +132,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               children: d.ingredients.map((i) => _BulletItem(text: i)).toList(),
             ),
           ),
+          if (missing.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _MissingIngredientsCard(
+              recipeName: widget.recipeName,
+              missing: missing,
+              onCoupang: _openCoupang,
+              onAddToShopping: widget.onAddToShopping,
+            ),
+          ],
           const SizedBox(height: 16),
           _SectionCard(
             icon: Icons.format_list_numbered,
@@ -152,6 +179,107 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             _YoutubeSection(links: d.youtubeLinks),
           ],
           const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissingIngredientsCard extends StatelessWidget {
+  final String recipeName;
+  final List<String> missing;
+  final void Function(String) onCoupang;
+  final void Function(List<String>, String)? onAddToShopping;
+
+  const _MissingIngredientsCard({
+    required this.recipeName,
+    required this.missing,
+    required this.onCoupang,
+    this.onAddToShopping,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8231A).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8231A).withOpacity(0.08),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.remove_shopping_cart_outlined, color: Color(0xFFE8231A), size: 20),
+                SizedBox(width: 8),
+                Text(
+                  '부족한 재료',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFFE8231A)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              children: missing.map((ing) => ListTile(
+                dense: true,
+                leading: const Icon(Icons.circle, size: 6, color: Color(0xFFE8231A)),
+                title: Text(ing, style: const TextStyle(fontSize: 15)),
+                trailing: ElevatedButton.icon(
+                  onPressed: () => onCoupang(ing),
+                  icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                  label: const Text('구매', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              )).toList(),
+            ),
+          ),
+          if (onAddToShopping != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    onAddToShopping!(missing, recipeName);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${missing.length}개 재료가 쇼핑 목록에 추가되었습니다.'),
+                        backgroundColor: kPrimary,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_shopping_cart, size: 18),
+                  label: const Text('쇼핑 목록에 전체 추가'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kPrimary,
+                    side: const BorderSide(color: kPrimary),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

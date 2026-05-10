@@ -10,7 +10,8 @@ import 'recipe_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool loggedIn;
-  const HomeScreen({super.key, required this.loggedIn});
+  final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
+  const HomeScreen({super.key, required this.loggedIn, this.onAddToShopping});
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
@@ -335,6 +336,8 @@ class HomeScreenState extends State<HomeScreen> {
                             builder: (_) => RecipeDetailScreen(
                               recipeName: r.name,
                               ingredients: _names,
+                              missingIngredients: r.additional,
+                              onAddToShopping: widget.onAddToShopping,
                             ),
                           ),
                         ),
