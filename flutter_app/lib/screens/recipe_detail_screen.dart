@@ -9,6 +9,7 @@ class RecipeDetailScreen extends StatefulWidget {
   final String recipeName;
   final List<String> ingredients;
   final List<String> missingIngredients;
+  final int? userId;
   final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
 
   const RecipeDetailScreen({
@@ -16,6 +17,7 @@ class RecipeDetailScreen extends StatefulWidget {
     required this.recipeName,
     required this.ingredients,
     this.missingIngredients = const [],
+    this.userId,
     this.onAddToShopping,
   });
 
@@ -28,6 +30,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isLoading = true;
   bool _isSaved = false;
   bool _isSaving = false;
+  final Map<String, Map<String, dynamic>> _substitutes = {};
 
   final _api = ApiService();
   final _storage = StorageService();
@@ -37,6 +40,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     super.initState();
     _load();
     _checkSaved();
+    if (widget.userId != null && widget.missingIngredients.isNotEmpty) {
+      _loadSubstitutes();
+    }
+  }
+
+  Future<void> _loadSubstitutes() async {
+    await Future.wait(widget.missingIngredients.map((ing) async {
+      try {
+        final result = await _api.getSubstitute(widget.userId!, ing, widget.recipeName);
+        if ((result['substitute'] as String?) != null && mounted) {
+          setState(() => _substitutes[ing] = result);
+        }
+      } catch (_) {}
+    }));
   }
 
   Future<void> _load() async {
@@ -137,6 +154,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             _MissingIngredientsCard(
               recipeName: widget.recipeName,
               missing: missing,
+              substitutes: _substitutes,
               onCoupang: _openCoupang,
               onAddToShopping: widget.onAddToShopping,
             ),
@@ -188,12 +206,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 class _MissingIngredientsCard extends StatelessWidget {
   final String recipeName;
   final List<String> missing;
+  final Map<String, Map<String, dynamic>> substitutes;
   final void Function(String) onCoupang;
   final void Function(List<String>, String)? onAddToShopping;
 
   const _MissingIngredientsCard({
     required this.recipeName,
     required this.missing,
+    required this.substitutes,
     required this.onCoupang,
     this.onAddToShopping,
   });
@@ -234,24 +254,48 @@ class _MissingIngredientsCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(
-              children: missing.map((ing) => ListTile(
-                dense: true,
-                leading: const Icon(Icons.circle, size: 6, color: Color(0xFFE8231A)),
-                title: Text(ing, style: const TextStyle(fontSize: 15)),
-                trailing: ElevatedButton.icon(
-                  onPressed: () => onCoupang(ing),
-                  icon: const Icon(Icons.shopping_bag_outlined, size: 14),
-                  label: const Text('구매', style: TextStyle(fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              children: missing.map((ing) {
+                final sub = substitutes[ing];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.circle, size: 6, color: Color(0xFFE8231A)),
+                  title: Text(ing, style: const TextStyle(fontSize: 15)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (sub != null) ...[
+                        OutlinedButton(
+                          onPressed: () => _showSubstituteDialog(context, ing, sub),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: kPrimary,
+                            side: const BorderSide(color: kPrimary),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            textStyle: const TextStyle(fontSize: 11),
+                          ),
+                          child: const Text('대체'),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      ElevatedButton.icon(
+                        onPressed: () => onCoupang(ing),
+                        icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                        label: const Text('구매', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              )).toList(),
+                );
+              }).toList(),
             ),
           ),
           if (onAddToShopping != null)
@@ -368,6 +412,66 @@ class _StepItem extends StatelessWidget {
           ],
         ),
       );
+}
+
+void _showSubstituteDialog(BuildContext context, String original, Map<String, dynamic> sub) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.swap_horiz, color: kPrimary),
+          SizedBox(width: 8),
+          Text('대체 재료 추천', style: TextStyle(fontSize: 17)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8231A).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(original, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: kAccentLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  sub['substitute'] as String,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: kPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            sub['reason'] as String? ?? '',
+            style: const TextStyle(height: 1.55, color: Colors.black87),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
+  );
 }
 
 // 유튜브 링크 섹션

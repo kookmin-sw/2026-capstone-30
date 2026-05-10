@@ -197,6 +197,31 @@ class ApiService {
     if (res.statusCode != 200) throw Exception(_errorMsg(res));
   }
 
+  Future<Map<String, dynamic>> getSubstitute(
+    int userId,
+    String missingIngredient,
+    String recipeName, {
+    String recipeContext = '',
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/recipes/substitute'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'userId': userId,
+            'missingIngredient': missingIngredient,
+            'recipeName': recipeName,
+            'recipeContext': recipeContext,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body)['data']);
+    }
+    throw Exception(_errorMsg(res));
+  }
+
   String _errorMsg(http.Response res) {
     try {
       return jsonDecode(res.body)['error'] ?? '서버 오류 (${res.statusCode})';

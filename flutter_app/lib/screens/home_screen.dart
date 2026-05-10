@@ -337,6 +337,7 @@ class HomeScreenState extends State<HomeScreen> {
                               recipeName: r.name,
                               ingredients: _names,
                               missingIngredients: r.additional,
+                              userId: _userId,
                               onAddToShopping: widget.onAddToShopping,
                             ),
                           ),
