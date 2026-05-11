@@ -56,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userId = info['userId'];
         try {
           final profile = await _api.getProfile(_userId!);
+          await _storage.saveProfile(profile);
           if (!mounted) return;
           setState(() { _profile = profile; _isLoading = false; });
           return;

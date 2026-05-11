@@ -123,6 +123,12 @@ class _MainNavigatorState extends State<MainNavigator> {
 
     // 로컬 식재료 캐시 빼기
     await _storage.saveIngredients([]);
+
+    // 서버 프로필을 로컬에 동기화
+    try {
+      final serverProfile = await _api.getProfile(userId);
+      await _storage.saveProfile(serverProfile);
+    } catch (_) {}
   }
 
   Future<void> _onLogout() async {

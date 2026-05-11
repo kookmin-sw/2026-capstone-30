@@ -169,17 +169,25 @@ app.post('/api/recipes', rateLimiter, async (req, res) => {
     return res.status(400).json({ error: '재료 목록이 필요합니다.' });
   }
 
-  const allergiesInfo =
-    profile.allergies?.length > 0 ? `알레르기: ${profile.allergies.join(', ')}` : '';
-  const dietaryInfo =
-    profile.dietaryRestriction && profile.dietaryRestriction !== '없음'
-      ? `식이제한: ${profile.dietaryRestriction}`
+  const allergiesWarning =
+    profile.allergies?.length > 0
+      ? `다음 알레르기 재료가 포함된 레시피는 절대 추천하지 마세요: ${profile.allergies.join(', ')}`
+      : '';
+  const dietaryDetailMap = {
+    '채식': '고기, 해산물, 가금류가 들어간 레시피는 절대 추천하지 마세요.',
+    '비건': '고기, 생선, 계란, 유제품 등 모든 동물성 식품이 들어간 레시피는 절대 추천하지 마세요.',
+    '할랄': '돼지고기 및 할랄 인증이 없는 육류가 들어간 레시피는 절대 추천하지 마세요.',
+  };
+  const r = profile.dietaryRestriction;
+  const dietaryWarning =
+    r && r !== '없음' && dietaryDetailMap[r]
+      ? `식이제한(${r})을 반드시 준수하세요. ${dietaryDetailMap[r]}`
       : '';
   const cuisineInfo =
     profile.preferredCuisines?.length > 0
-      ? `선호 요리: ${profile.preferredCuisines.join(', ')}`
+      ? `선호 요리 종류: ${profile.preferredCuisines.join(', ')}`
       : '';
-  const userContext = [allergiesInfo, dietaryInfo, cuisineInfo].filter(Boolean).join(' / ');
+  const constraints = [allergiesWarning, dietaryWarning].filter(Boolean).join('\n');
   const prevInfo =
     previousRecipes.length > 0
       ? `\n이미 추천한 레시피(중복 제외): ${previousRecipes.join(', ')}`
@@ -188,7 +196,8 @@ app.post('/api/recipes', rateLimiter, async (req, res) => {
   const prompt = `당신은 전문 요리사입니다. 다음 재료로 만들 수 있는 레시피 3-5개를 추천해주세요.
 
 사용 가능한 재료: ${ingredients.join(', ')}
-${userContext ? `사용자 정보: ${userContext}` : ''}${prevInfo}
+${constraints ? `[필수 제한 사항 - 반드시 지켜야 합니다]\n${constraints}` : ''}
+${cuisineInfo}${prevInfo}
 
 다음 JSON 형식으로만 응답해주세요:
 {
@@ -206,7 +215,7 @@ ${userContext ? `사용자 정보: ${userContext}` : ''}${prevInfo}
 
   try {
     const response = await callOpenRouter([
-      { role: 'system', content: '전문 요리사로서 JSON 형식으로만 응답합니다.' },
+      { role: 'system', content: '전문 요리사로서 JSON 형식으로만 응답합니다. 사용자의 알레르기 및 식이제한은 반드시 지켜야 하며, 위반하는 레시피는 절대 추천하지 않습니다.' },
       { role: 'user', content: prompt },
     ], 3, 1500);
 
@@ -285,6 +294,30 @@ app.post('/api/recipes/substitute', rateLimiter, async (req, res) => {
       });
     }
 
+    const [[userRow]] = await db.query(
+      'SELECT diet_type FROM users WHERE user_id = ?',
+      [userId]
+    );
+    const [allergyRows] = await db.query(
+      `SELECT a.name FROM user_allergies ua
+       JOIN allergies a ON ua.allergy_id = a.allergy_id WHERE ua.user_id = ?`,
+      [userId]
+    );
+
+    const allergies = allergyRows.map((r) => r.name);
+    const dietType = userRow?.diet_type ?? 'normal';
+    const dietKr = { normal: '없음', vegetarian: '채식', vegan: '비건', halal: '할랄' }[dietType] ?? '없음';
+
+    const allergyConstraint = allergies.length > 0
+      ? `다음 알레르기 재료가 포함된 재료는 절대 추천하지 마세요: ${allergies.join(', ')}`
+      : '';
+    const dietConstraint = {
+      vegetarian: '채식 식단입니다. 고기, 해산물, 가금류가 포함된 재료는 절대 추천하지 마세요.',
+      vegan: '비건 식단입니다. 고기, 생선, 계란, 유제품 등 모든 동물성 재료는 절대 추천하지 마세요.',
+      halal: '할랄 식단입니다. 돼지고기 및 할랄 인증이 없는 육류는 절대 추천하지 마세요.',
+    }[dietType] ?? '';
+    const constraints = [allergyConstraint, dietConstraint].filter(Boolean).join('\n');
+
     const ingredientsList = rows.map((r) => r.name).join(', ');
     const contextLine = recipeContext ? `- 종류: ${recipeContext}\n` : '';
 
@@ -298,7 +331,7 @@ ${missingIngredient}
 ${contextLine}
 [냉장고 보유 재료]
 ${ingredientsList}
-
+${constraints ? `\n[필수 제한 사항 - 반드시 지켜야 합니다]\n${constraints}\n` : ''}
 [중요한 원칙 - 억지로 추천하지 않기]
 - 대체했을 때 요리의 정체성이 크게 훼손되거나, 맛/식감/조리 결과가 현저히 나빠진다면 추천하지 마세요.
 - 핵심 재료(예: 김치찌개의 김치, 미역국의 미역)는 일반적으로 대체 불가입니다.
@@ -324,7 +357,7 @@ ${ingredientsList}
 {"substitute": null, "reason": "김치는 발효 풍미가 핵심이라 보유 재료로는 대체가 어렵습니다"}`;
 
     const response = await callOpenRouter([
-      { role: 'system', content: '전문 요리사로서 JSON 형식으로만 응답합니다.' },
+      { role: 'system', content: `전문 요리사로서 JSON 형식으로만 응답합니다. 사용자의 알레르기 및 식이제한(${dietKr})은 반드시 지켜야 하며, 위반하는 재료는 절대 추천하지 않습니다.` },
       { role: 'user', content: prompt },
     ], 3, 512);
 
