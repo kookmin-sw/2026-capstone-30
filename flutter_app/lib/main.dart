@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'constants.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
@@ -7,7 +9,15 @@ import 'screens/profile_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const FridgeRecipeApp());
 }
 
@@ -56,6 +66,40 @@ class _MainNavigatorState extends State<MainNavigator> {
   void initState() {
     super.initState();
     _check();
+    _initNotification();
+  }
+
+  Future<void> _initNotification() async {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      final token = await messaging.getToken();
+      if (token != null) await _saveToken(token);
+      messaging.onTokenRefresh.listen((t) => _saveToken(t));
+    }
+
+    FirebaseMessaging.onMessage.listen((message) {
+      final notification = message.notification;
+      if (notification != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${notification.title ?? ''}: ${notification.body ?? ''}'),
+          backgroundColor: kPrimary,
+          duration: const Duration(seconds: 4),
+        ));
+      }
+    });
+  }
+
+  Future<void> _saveToken(String token) async {
+    final info = await _storage.getLoginInfo();
+    if (info == null) return;
+    try {
+      await _api.saveFcmToken(info['userId'] as int, token);
+    } catch (_) {}
   }
 
   Future<void> _check() async {

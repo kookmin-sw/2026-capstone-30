@@ -222,6 +222,16 @@ class ApiService {
     throw Exception(_errorMsg(res));
   }
 
+  Future<void> saveFcmToken(int userId, String token) async {
+    await http
+        .post(
+          Uri.parse('$kBaseUrl/api/fcm-token'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'userId': userId, 'token': token}),
+        )
+        .timeout(_timeout);
+  }
+
   String _errorMsg(http.Response res) {
     try {
       return jsonDecode(res.body)['error'] ?? '서버 오류 (${res.statusCode})';
