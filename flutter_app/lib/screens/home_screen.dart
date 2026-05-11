@@ -330,6 +330,7 @@ class HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 12),
                   ..._recipes.map((r) => _RecipeCard(
                         recipe: r,
+                        onAddToShopping: widget.onAddToShopping,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -535,7 +536,8 @@ class _IngredientsCard extends StatelessWidget {
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback onTap;
-  const _RecipeCard({required this.recipe, required this.onTap});
+  final void Function(List<String>, String)? onAddToShopping;
+  const _RecipeCard({required this.recipe, required this.onTap, this.onAddToShopping});
 
   @override
   Widget build(BuildContext context) {
@@ -580,6 +582,29 @@ class _RecipeCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Wrap(spacing: 4, runSpacing: 4,
                   children: recipe.additional.take(3).map((i) => _Tag(text: '+$i', have: false)).toList()),
+                if (onAddToShopping != null) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        onAddToShopping!(recipe.additional, recipe.name);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('${recipe.additional.length}개 재료가 쇼핑 목록에 추가되었습니다.'),
+                          backgroundColor: kPrimary,
+                        ));
+                      },
+                      icon: const Icon(Icons.add_shopping_cart, size: 16),
+                      label: const Text('쇼핑 목록에 추가', style: TextStyle(fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kPrimary,
+                        side: const BorderSide(color: kPrimary),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ],
           ),
