@@ -248,9 +248,10 @@ class HomeScreenState extends State<HomeScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 140,
+            expandedHeight: 150,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsetsDirectional.only(start: 104, bottom: 14),
               title: Text(
                 '냉집사',
                 style: GoogleFonts.jua(
@@ -268,12 +269,29 @@ class HomeScreenState extends State<HomeScreen> {
                     colors: [Color(0xFF1A4A35), Color(0xFF2A7D52)],
                   ),
                 ),
-                child: Align(
-                  alignment: const Alignment(0, 0.3),
-                  child: Text(
-                    '냉장고 사진으로 레시피를 찾아보세요',
-                    style: GoogleFonts.jua(color: Colors.white70, fontSize: 13),
-                  ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 16,
+                      bottom: 12,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/app_icon.png',
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 104,
+                      bottom: 50,
+                      child: Text(
+                        '냉장고 사진으로 레시피를 찾아보세요',
+                        style: GoogleFonts.jua(color: Colors.white70, fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
