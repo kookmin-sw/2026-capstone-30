@@ -108,7 +108,7 @@ class _MainNavigatorState extends State<MainNavigator> {
     setState(() { _loggedIn = info != null; _checking = false; });
   }
 
-  // 로그인,회원가입 성공하면 로컬 데이터를 DB로 
+  // 로그인,회원가입 성공하면 로컬 데이터를 DB로
   Future<void> _onLoginSuccess() async {
     setState(() { _loggedIn = true; _migrating = true; });
 
@@ -124,6 +124,10 @@ class _MainNavigatorState extends State<MainNavigator> {
     } finally {
       if (mounted) setState(() => _migrating = false);
     }
+
+    // 로그인 후 FCM 토큰 서버에 전송
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null) await _saveToken(token);
 
     _homeKey.currentState?.reloadFromServer();
     if (mounted) {
@@ -176,8 +180,16 @@ class _MainNavigatorState extends State<MainNavigator> {
   }
 
   Future<void> _onLogout() async {
+    // 로그아웃 전 FCM 토큰 삭제
+    final info = await _storage.getLoginInfo();
+    if (info != null) {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        try { await _api.deleteFcmToken(info['userId'] as int, token); } catch (_) {}
+      }
+    }
     await _storage.logout();
-    await _storage.saveIngredients([]); 
+    await _storage.saveIngredients([]);
     if (!mounted) return;
     setState(() => _loggedIn = false);
     _homeKey.currentState?.reloadFromServer();
