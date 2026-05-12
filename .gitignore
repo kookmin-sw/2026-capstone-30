@@ -23,3 +23,4 @@ flutter_app/android/app/profile/
 .DS_Store
 Thumbs.db
 .env
+flutter_app/android/app/google-services.json
