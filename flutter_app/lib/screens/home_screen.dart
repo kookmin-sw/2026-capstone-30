@@ -8,6 +8,46 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'recipe_detail_screen.dart';
 
+// 서버 server.js의 분류 사전과 같이 유지
+const Map<String, String> _exactCategory = {
+  '깨': '양념', '꿀': '양념', '잼': '양념', '소금': '양념', '설탕': '양념',
+  '김': '해산물', '게': '해산물', '굴': '해산물',
+  '무': '채소', '파': '채소', '콩': '채소',
+  '김치': '채소', '배추김치': '채소', '깍두기': '채소', '총각김치': '채소',
+  '단무지': '채소', '장아찌': '채소', '오이지': '채소', '나박김치': '채소', '열무김치': '채소',
+  '배': '과일', '감': '과일', '귤': '과일',
+};
+
+const Map<String, List<String>> _categoryKeywords = {
+  '양념': ['후추', '고춧가루', '간장', '된장', '고추장', '쌈장', '참기름', '들기름', '식초', '식용유', '올리브유', '카놀라유', '미림', '맛술', '마요네즈', '케첩', '케찹', '머스타드', '굴소스', '액젓', '멸치액젓', '까나리', '다시다', '미원', '연두', '드레싱', '향신료', '계피', '바질', '오레가노', '월계수', '카레', '밀가루', '전분', '시럽', '마가린', '참깨', '들깨'],
+  '고기': ['소고기', '쇠고기', '돼지고기', '삼겹살', '목살', '항정살', '갈비', '등심', '안심', '닭고기', '닭가슴살', '닭다리', '닭날개', '오리고기', '양고기', '베이컨', '소시지', '핫도그', '스팸', '다짐육', '간고기', '불고기', '제육', '족발', '곱창', '대창', '막창', '치킨', '계란', '달걀', '햄'],
+  '채소': ['양파', '대파', '쪽파', '실파', '마늘', '생강', '당근', '감자', '고구마', '배추', '양배추', '상추', '깻잎', '시금치', '부추', '미나리', '쑥갓', '청경채', '브로콜리', '콜리플라워', '파프리카', '피망', '청양고추', '고추', '오이', '토마토', '방울토마토', '가지', '호박', '애호박', '단호박', '버섯', '표고', '느타리', '팽이', '양송이', '새송이', '콩나물', '숙주', '연근', '우엉', '도라지', '더덕', '아스파라거스', '셀러리', '비트', '래디시', '옥수수', '완두콩', '두부', '유부'],
+  '해산물': ['고등어', '갈치', '꽁치', '삼치', '명태', '동태', '황태', '코다리', '북어', '연어', '참치', '광어', '우럭', '도미', '조기', '굴비', '멸치', '새우', '대하', '오징어', '낙지', '주꾸미', '문어', '꼴뚜기', '조개', '바지락', '홍합', '전복', '소라', '꽃게', '대게', '랍스터', '미역', '다시마', '톳', '매생이', '파래', '명란', '알탕', '어묵', '게맛살', '맛살', '생선'],
+  '유제품': ['우유', '치즈', '요거트', '요구르트', '생크림', '버터', '연유', '두유', '슬라이스치즈', '체다', '모짜렐라', '모차렐라', '리코타', '크림치즈', '코티지', '플레인요거트'],
+  '과일': ['사과', '바나나', '딸기', '포도', '청포도', '오렌지', '레몬', '라임', '키위', '망고', '파인애플', '복숭아', '천도복숭아', '자두', '체리', '수박', '참외', '멜론', '블루베리', '라즈베리', '크랜베리', '아보카도', '단감', '홍시', '석류', '한라봉', '천혜향', '용과', '리치', '망고스틴', '두리안', '무화과', '거봉'],
+};
+
+String classifyIngredient(String name) {
+  final n = name.trim();
+  if (n.isEmpty) return '기타';
+  if (_exactCategory.containsKey(n)) return _exactCategory[n]!;
+  for (final entry in _categoryKeywords.entries) {
+    if (entry.value.any((kw) => n.contains(kw))) return entry.key;
+  }
+  return '기타';
+}
+
+const List<String> _categoryOrder = ['양념', '고기', '채소', '해산물', '유제품', '과일', '기타'];
+const Map<String, IconData> _categoryIcons = {
+  '양념': Icons.local_dining,
+  '고기': Icons.set_meal,
+  '채소': Icons.eco,
+  '해산물': Icons.water,
+  '유제품': Icons.icecream,
+  '과일': Icons.local_florist,
+  '기타': Icons.category,
+};
+
 class HomeScreen extends StatefulWidget {
   final bool loggedIn;
   final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
@@ -70,15 +110,26 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadFromLocal() async {
-    final names = await _storage.getIngredients();
+    final items = await _storage.getIngredients();
     if (mounted) {
-      setState(() => _ingredients = names
-          .map((n) => <String, dynamic>{'ingredient_id': null, 'name': n})
+      setState(() => _ingredients = items
+          .map((e) => <String, dynamic>{
+                'ingredient_id': null,
+                'name': e['name'],
+                'category': e['category'] ?? '기타',
+              })
           .toList());
     }
   }
 
-  Future<void> _persistLocal() => _storage.saveIngredients(_names);
+  Future<void> _persistLocal() => _storage.saveIngredients(
+        _ingredients
+            .map((e) => <String, dynamic>{
+                  'name': e['name'],
+                  'category': e['category'] ?? '기타',
+                })
+            .toList(),
+      );
 
   List<String> get _names => _ingredients.map((e) => e['name'] as String).toList();
 
@@ -151,14 +202,23 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       final result = await _api.analyzeImage(_image!);
       if (result.isNotEmpty) {
+        final items = result
+            .map((n) => <String, dynamic>{'name': n, 'category': classifyIngredient(n)})
+            .toList();
         if (widget.loggedIn && _userId != null) {
-          await _api.saveIngredients(_userId!, result);
+          await _api.saveIngredients(_userId!, items);
           await _loadFromServer();
         } else {
           // 비로그인: 메모리 + 로컬에 누적 (중복 제거)
           final existing = _names.toSet();
-          for (final n in result) {
-            if (existing.add(n)) _ingredients.add({'ingredient_id': null, 'name': n});
+          for (final item in items) {
+            if (existing.add(item['name'] as String)) {
+              _ingredients.add({
+                'ingredient_id': null,
+                'name': item['name'],
+                'category': item['category'],
+              });
+            }
           }
           await _persistLocal();
         }
@@ -222,13 +282,20 @@ class HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               final t = ctrl.text.trim();
               if (t.isNotEmpty && !_names.contains(t)) {
+                final cat = classifyIngredient(t);
                 if (widget.loggedIn && _userId != null) {
                   try {
-                    await _api.saveIngredients(_userId!, [t]);
+                    await _api.saveIngredients(_userId!, [
+                      {'name': t, 'category': cat}
+                    ]);
                     await _loadFromServer();
                   } catch (_) {}
                 } else {
-                  setState(() => _ingredients.add({'ingredient_id': null, 'name': t}));
+                  setState(() => _ingredients.add({
+                        'ingredient_id': null,
+                        'name': t,
+                        'category': cat,
+                      }));
                   await _persistLocal();
                 }
               }
@@ -309,18 +376,12 @@ class HomeScreenState extends State<HomeScreen> {
                 _CatBubble(message: _catMessage),
                 const SizedBox(height: 12),
 
-                if (_ingredients.isNotEmpty || _isAnalyzing)
-                  _IngredientsCard(
-                    ingredients: _names,
-                    isAnalyzing: _isAnalyzing,
-                    onRemove: (name) {
-                      final item = _ingredients.firstWhere(
-                        (e) => e['name'] == name, orElse: () => {},
-                      );
-                      if (item.isNotEmpty) _removeIngredient(item);
-                    },
-                    onAdd: _showAddDialog,
-                  ),
+                _IngredientsCard(
+                  ingredients: _ingredients,
+                  isAnalyzing: _isAnalyzing,
+                  onRemove: _removeIngredient,
+                  onAdd: _showAddDialog,
+                ),
 
                 if (_ingredients.isNotEmpty && !_isAnalyzing) ...[
                   const SizedBox(height: 16),
@@ -492,9 +553,9 @@ class _ImageUploadCard extends StatelessWidget {
 }
 
 class _IngredientsCard extends StatelessWidget {
-  final List<String> ingredients;
+  final List<Map<String, dynamic>> ingredients;
   final bool isAnalyzing;
-  final void Function(String) onRemove;
+  final void Function(Map<String, dynamic>) onRemove;
   final VoidCallback onAdd;
 
   const _IngredientsCard({
@@ -502,8 +563,21 @@ class _IngredientsCard extends StatelessWidget {
     required this.onRemove, required this.onAdd,
   });
 
+  Map<String, List<Map<String, dynamic>>> _grouped() {
+    final map = <String, List<Map<String, dynamic>>>{};
+    for (final item in ingredients) {
+      final cat = (item['category'] as String?) ?? '기타';
+      final key = _categoryOrder.contains(cat) ? cat : '기타';
+      map.putIfAbsent(key, () => []).add(item);
+    }
+    return map;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final grouped = _grouped();
+    final isEmpty = ingredients.isEmpty && !isAnalyzing;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -517,8 +591,10 @@ class _IngredientsCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.kitchen, color: kPrimary),
             const SizedBox(width: 8),
-            Text('발견된 재료 (${ingredients.length}개)',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              isEmpty ? '나의 냉장고' : '나의 냉장고 (${ingredients.length}개)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const Spacer(),
             IconButton(
               onPressed: onAdd,
@@ -528,23 +604,106 @@ class _IngredientsCard extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           if (isAnalyzing)
-            const Center(child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(),
-            ))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (isEmpty)
+            SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(Icons.kitchen_outlined, size: 56, color: Colors.grey[300]),
+                    const SizedBox(height: 8),
+                    Text(
+                      '냉장고가 비어있어요!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '사진을 찍거나 직접 재료를 추가해보세요',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
-            Wrap(
-              spacing: 8, runSpacing: 8,
-              children: ingredients.map((item) => Chip(
-                label: Text(item),
-                deleteIcon: const Icon(Icons.close, size: 16),
-                onDeleted: () => onRemove(item),
-                backgroundColor: kAccentLight,
-                deleteIconColor: kPrimary,
-                labelStyle: const TextStyle(color: kPrimary),
-                side: const BorderSide(color: kPrimary, width: 0.5),
-              )).toList(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final cat in _categoryOrder)
+                  if ((grouped[cat] ?? const []).isNotEmpty)
+                    _CategorySection(
+                      category: cat,
+                      items: grouped[cat]!,
+                      onRemove: onRemove,
+                    ),
+              ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategorySection extends StatelessWidget {
+  final String category;
+  final List<Map<String, dynamic>> items;
+  final void Function(Map<String, dynamic>) onRemove;
+
+  const _CategorySection({
+    required this.category,
+    required this.items,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(_categoryIcons[category] ?? Icons.category, size: 16, color: kPrimary),
+              const SizedBox(width: 6),
+              Text(
+                '$category (${items.length})',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: kPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items.map((item) => Chip(
+              label: Text(item['name'] as String),
+              deleteIcon: const Icon(Icons.close, size: 16),
+              onDeleted: () => onRemove(item),
+              backgroundColor: kAccentLight,
+              deleteIconColor: kPrimary,
+              labelStyle: const TextStyle(color: kPrimary),
+              side: const BorderSide(color: kPrimary, width: 0.5),
+            )).toList(),
+          ),
         ],
       ),
     );

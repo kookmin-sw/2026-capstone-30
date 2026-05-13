@@ -65,6 +65,8 @@ CREATE TABLE ingredients (
     ingredient_id INT          AUTO_INCREMENT PRIMARY KEY,
     user_id       INT          NOT NULL,
     name          VARCHAR(100) NOT NULL,
+    category      ENUM('양념','고기','채소','해산물','유제품','과일','기타') NOT NULL DEFAULT '기타',
     created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_ingredient (user_id, name),
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

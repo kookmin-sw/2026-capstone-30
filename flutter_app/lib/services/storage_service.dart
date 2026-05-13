@@ -65,14 +65,22 @@ class StorageService {
     await prefs.setString(_profileKey, jsonEncode(profile.toJson()));
   }
 
-  Future<List<String>> getIngredients() async {
+  Future<List<Map<String, dynamic>>> getIngredients() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_ingredientsKey);
     if (raw == null) return [];
-    return List<String>.from(jsonDecode(raw));
+    final decoded = jsonDecode(raw) as List;
+    if (decoded.isEmpty) return [];
+    // 구 포맷(List<String>) 하위 호환: 문자열이면 {name, category:'기타'}로 변환
+    if (decoded.first is String) {
+      return decoded
+          .map((e) => <String, dynamic>{'name': e as String, 'category': '기타'})
+          .toList();
+    }
+    return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<void> saveIngredients(List<String> ingredients) async {
+  Future<void> saveIngredients(List<Map<String, dynamic>> ingredients) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_ingredientsKey, jsonEncode(ingredients));
   }

@@ -163,7 +163,13 @@ class _MainNavigatorState extends State<MainNavigator> {
         existing = db.map((e) => e['name'] as String).toList();
       } catch (_) {}
 
-      final upload = local.where((n) => n.trim().isNotEmpty && !existing.contains(n)).toSet().toList();
+      final seen = <String>{};
+      final upload = <Map<String, dynamic>>[];
+      for (final item in local) {
+        final name = (item['name'] as String?)?.trim() ?? '';
+        if (name.isEmpty || existing.contains(name) || !seen.add(name)) continue;
+        upload.add({'name': name, 'category': item['category'] ?? '기타'});
+      }
       if (upload.isNotEmpty) {
         try { await _api.saveIngredients(userId, upload); } catch (_) {}
       }

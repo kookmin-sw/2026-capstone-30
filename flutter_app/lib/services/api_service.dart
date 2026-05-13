@@ -160,14 +160,17 @@ class ApiService {
     if (res.statusCode != 200) throw Exception(_errorMsg(res));
   }
 
-  Future<Map<String, dynamic>> saveIngredients(int userId, List<String> names) async {
+  Future<Map<String, dynamic>> saveIngredients(
+    int userId,
+    List<Map<String, dynamic>> items,
+  ) async {
     final res = await http
         .post(
           Uri.parse('$kBaseUrl/api/ingredients'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'user_id': userId,
-            'ingredients': names.map((n) => {'name': n}).toList(),
+            'ingredients': items,
           }),
         )
         .timeout(_timeout);
