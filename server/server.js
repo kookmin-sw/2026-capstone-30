@@ -711,6 +711,31 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
 
+// ── Gemini로 유행 음식 추천 메시지 생성 ─────────────────────────
+async function generateTrendingMessage() {
+  try {
+    const hour = new Date().getHours();
+    const timeSlot = hour < 10 ? '아침' : hour < 14 ? '점심' : hour < 18 ? '오후' : '저녁';
+    const result = await callOpenRouter([
+      {
+        role: 'user',
+        content: `당신은 음식 트렌드에 밝은 냉집사 앱의 알림 담당자입니다.
+지금은 ${timeSlot} 시간대입니다.
+요즘 SNS나 유튜브에서 유행하는 음식이나 요리를 한 가지 골라,
+사용자가 냉집사 앱을 열어 직접 만들어보고 싶게 만드는 짧은 푸시 알림 문구를 작성해주세요.
+조건:
+- 40자 이내
+- 이모지 1~2개 포함
+- "냉집사에서 찾아보세요" 같은 앱 유도 문구 포함
+- 문구만 출력 (설명 없이)`,
+      },
+    ], 1, 100);
+    return result?.trim() ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── 자동 알림 스케줄러 (2시간마다) ──────────────────────────────
 async function sendScheduledNotification() {
   if (!admin.apps.length) return;
@@ -720,9 +745,9 @@ async function sendScheduledNotification() {
     );
     if (!rows.length) return;
 
-    // 2단계에서 날씨 + AI 메시지로 교체 예정
     const title = '냉집사';
-    const body = '오늘 저녁 메뉴 고민 중이세요? 냉장고 속 재료로 뚝딱 만들어봐요 🍳';
+    const aiMessage = await generateTrendingMessage();
+    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요! 🍳';
 
     const tokens = rows.map((r) => r.fcm_token);
     const result = await admin.messaging().sendEachForMulticast({
@@ -731,6 +756,7 @@ async function sendScheduledNotification() {
       data: { screen: 'home' },
     });
     console.log(`[스케줄러] 알림 발송 완료 — 성공: ${result.successCount}, 실패: ${result.failureCount}`);
+    console.log(`[스케줄러] 메시지: ${body}`);
   } catch (error) {
     console.error('[스케줄러] 알림 발송 실패:', error.message);
   }
