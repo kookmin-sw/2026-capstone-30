@@ -614,13 +614,26 @@ app.delete('/api/ingredients/:ingredientId', async (req, res) => {
 });
 
 // FCM 토큰 저장
-app.put('/api/users/:userId/fcm-token', async (req, res) => {
+app.post('/api/fcm-token', async (req, res) => {
   try {
-    await db.query('UPDATE users SET fcm_token = ? WHERE user_id = ?', [req.body.fcm_token, req.params.userId]);
+    const { userId, token } = req.body;
+    await db.query('UPDATE users SET fcm_token = ? WHERE user_id = ?', [token, userId]);
     res.json({ message: 'FCM 토큰 저장 완료' });
   } catch (error) {
-    console.error('[/api/users/fcm-token]', error.message);
+    console.error('[POST /api/fcm-token]', error.message);
     res.status(500).json({ error: 'FCM 토큰 저장 실패' });
+  }
+});
+
+// FCM 토큰 삭제
+app.delete('/api/fcm-token', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    await db.query('UPDATE users SET fcm_token = NULL WHERE user_id = ?', [userId]);
+    res.json({ message: 'FCM 토큰 삭제 완료' });
+  } catch (error) {
+    console.error('[DELETE /api/fcm-token]', error.message);
+    res.status(500).json({ error: 'FCM 토큰 삭제 실패' });
   }
 });
 
