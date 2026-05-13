@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
+const cron = require('node-cron');
 const admin = require('firebase-admin');
 const { config } = require('./config');
 const db = require('./db');
@@ -709,6 +710,35 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
+
+// ── 자동 알림 스케줄러 (2시간마다) ──────────────────────────────
+async function sendScheduledNotification() {
+  if (!admin.apps.length) return;
+  try {
+    const [rows] = await db.query(
+      'SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL'
+    );
+    if (!rows.length) return;
+
+    // 2단계에서 날씨 + AI 메시지로 교체 예정
+    const title = '냉집사';
+    const body = '오늘 저녁 메뉴 고민 중이세요? 냉장고 속 재료로 뚝딱 만들어봐요 🍳';
+
+    const tokens = rows.map((r) => r.fcm_token);
+    const result = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title, body },
+      data: { screen: 'home' },
+    });
+    console.log(`[스케줄러] 알림 발송 완료 — 성공: ${result.successCount}, 실패: ${result.failureCount}`);
+  } catch (error) {
+    console.error('[스케줄러] 알림 발송 실패:', error.message);
+  }
+}
+
+// 2시간마다 실행 (매 짝수 시각 정각)
+cron.schedule('0 */2 * * *', sendScheduledNotification);
+console.log('[스케줄러] 2시간 주기 알림 스케줄러 등록 완료');
 
 app.listen(config.port, '0.0.0.0', () => {
   console.log(`서버 실행 중: http://0.0.0.0:${config.port}`);
