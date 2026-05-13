@@ -731,6 +731,22 @@ app.post('/api/notifications/send-all', async (req, res) => {
   }
 });
 
+// 수동 테스트 알림 즉시 발송 (개발용)
+app.post('/api/notifications/test', async (req, res) => {
+  if (!admin.apps.length) {
+    return res.status(503).json({ error: 'Firebase Admin 미초기화' });
+  }
+  try {
+    const aiMessage = await generateTrendingMessage();
+    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
+    const stats = await broadcastNotification('냉집사 테스트', body, 'home');
+    res.json({ message: '테스트 알림 발송 완료', body, ...stats });
+  } catch (error) {
+    console.error('[POST /api/notifications/test]', error.message);
+    res.status(500).json({ error: '테스트 알림 발송 실패' });
+  }
+});
+
 // Multer 에러 핸들러
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message.includes('허용')) {
@@ -754,7 +770,7 @@ async function generateTrendingMessage() {
 사용자가 냉집사 앱을 열어 직접 만들어보고 싶게 만드는 짧은 푸시 알림 문구를 작성해주세요.
 조건:
 - 40자 이내
-- 이모지 1~2개 포함
+- 이모지 사용 금지
 - "냉집사에서 찾아보세요" 같은 앱 유도 문구 포함
 - 문구만 출력 (설명 없이)`,
       },
@@ -770,7 +786,7 @@ async function sendScheduledNotification() {
   if (!admin.apps.length) return;
   try {
     const aiMessage = await generateTrendingMessage();
-    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요! 🍳';
+    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
     await broadcastNotification('냉집사', body, 'home');
   } catch (error) {
     console.error('[스케줄러] 알림 발송 실패:', error.message);
