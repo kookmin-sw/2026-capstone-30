@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'constants.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
@@ -8,6 +9,16 @@ import 'screens/shopping_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+
+final FlutterLocalNotificationsPlugin _localNotifications =
+    FlutterLocalNotificationsPlugin();
+
+const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+  'fridge_recipe_channel',
+  '냉집사 알림',
+  description: '냉집사 앱 알림',
+  importance: Importance.high,
+);
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -18,6 +29,24 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await _localNotifications.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+  );
+  await _localNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_channel);
+
+  await FirebaseMessaging.instance
+      .setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   runApp(const FridgeRecipeApp());
 }
 
@@ -82,16 +111,40 @@ class _MainNavigatorState extends State<MainNavigator> {
       messaging.onTokenRefresh.listen((t) => _saveToken(t));
     }
 
+    // 포그라운드 알림: 시스템 배너로 표시
     FirebaseMessaging.onMessage.listen((message) {
       final notification = message.notification;
-      if (notification != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${notification.title ?? ''}: ${notification.body ?? ''}'),
-          backgroundColor: kPrimary,
-          duration: const Duration(seconds: 4),
-        ));
-      }
+      if (notification == null) return;
+      _localNotifications.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+      );
     });
+
+    // 백그라운드 상태에서 알림 탭
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+    // 종료 상태에서 알림 탭으로 앱 실행
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) _handleNotificationTap(initial);
+  }
+
+  void _handleNotificationTap(RemoteMessage message) {
+    final screen = message.data['screen'];
+    int targetIndex = 0;
+    if (screen == 'shopping') targetIndex = 2;
+    else if (screen == 'saved') targetIndex = 1;
+    else if (screen == 'profile') targetIndex = 3;
+    if (mounted) setState(() => _index = targetIndex);
   }
 
   Future<void> _saveToken(String token) async {
