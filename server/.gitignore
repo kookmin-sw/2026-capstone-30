@@ -1,6 +1,9 @@
 # 환경 변수 (API 키 포함) — 절대 커밋 금지
 .env
 
+# Firebase Admin 서비스 계정 키 — 절대 커밋 금지
+firebase-admin-key.json
+
 # 의존성
 node_modules/
 

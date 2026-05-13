@@ -1,8 +1,20 @@
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
+const admin = require('firebase-admin');
 const { config } = require('./config');
 const db = require('./db');
+
+// Firebase Admin SDK 초기화
+try {
+  const serviceAccount = require('./firebase-admin-key.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  console.log('[Firebase Admin] 초기화 완료');
+} catch (e) {
+  console.warn('[Firebase Admin] firebase-admin-key.json 없음 — 푸시 알림 비활성화');
+}
 
 const app = express();
 
@@ -634,6 +646,58 @@ app.delete('/api/fcm-token', async (req, res) => {
   } catch (error) {
     console.error('[DELETE /api/fcm-token]', error.message);
     res.status(500).json({ error: 'FCM 토큰 삭제 실패' });
+  }
+});
+
+// 특정 사용자에게 푸시 알림 발송
+app.post('/api/notifications/send', async (req, res) => {
+  if (!admin.apps.length) {
+    return res.status(503).json({ error: 'Firebase Admin 미초기화' });
+  }
+  try {
+    const { userId, title, body, screen } = req.body;
+    const [rows] = await db.query(
+      'SELECT fcm_token FROM users WHERE user_id = ? AND fcm_token IS NOT NULL',
+      [userId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'FCM 토큰 없음' });
+    }
+    await admin.messaging().send({
+      token: rows[0].fcm_token,
+      notification: { title, body },
+      data: { screen: screen ?? 'home' },
+    });
+    res.json({ message: '알림 발송 완료' });
+  } catch (error) {
+    console.error('[POST /api/notifications/send]', error.message);
+    res.status(500).json({ error: '알림 발송 실패' });
+  }
+});
+
+// 전체 사용자에게 푸시 알림 발송
+app.post('/api/notifications/send-all', async (req, res) => {
+  if (!admin.apps.length) {
+    return res.status(503).json({ error: 'Firebase Admin 미초기화' });
+  }
+  try {
+    const { title, body, screen } = req.body;
+    const [rows] = await db.query(
+      'SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL'
+    );
+    if (!rows.length) {
+      return res.json({ message: '발송 대상 없음', sent: 0 });
+    }
+    const tokens = rows.map((r) => r.fcm_token);
+    const result = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title, body },
+      data: { screen: screen ?? 'home' },
+    });
+    res.json({ message: '알림 발송 완료', sent: result.successCount, failed: result.failureCount });
+  } catch (error) {
+    console.error('[POST /api/notifications/send-all]', error.message);
+    res.status(500).json({ error: '알림 발송 실패' });
   }
 });
 
