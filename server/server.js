@@ -677,25 +677,54 @@ app.post('/api/notifications/send', async (req, res) => {
 });
 
 // 전체 사용자에게 푸시 알림 발송
+// 전체 사용자 FCM 발송 공통 함수 (무효 토큰 자동 정리 포함)
+async function broadcastNotification(title, body, screen = 'home') {
+  const [rows] = await db.query(
+    'SELECT user_id, fcm_token FROM users WHERE fcm_token IS NOT NULL'
+  );
+  if (!rows.length) return { sent: 0, failed: 0, cleaned: 0 };
+
+  const tokens = rows.map((r) => r.fcm_token);
+  const result = await admin.messaging().sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data: { screen },
+  });
+
+  // 무효 토큰 DB에서 자동 삭제
+  const invalidCodes = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token',
+  ]);
+  const toClean = result.responses
+    .map((r, i) => (!r.success && invalidCodes.has(r.error?.code)) ? rows[i].user_id : null)
+    .filter(Boolean);
+
+  if (toClean.length) {
+    await db.query(
+      `UPDATE users SET fcm_token = NULL WHERE user_id IN (${toClean.map(() => '?').join(',')})`,
+      toClean
+    );
+  }
+
+  const ts = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  console.log(`[알림 발송 ${ts}] 성공: ${result.successCount}, 실패: ${result.failureCount}, 토큰 정리: ${toClean.length}건`);
+  console.log(`[알림 발송] 제목: ${title} / 내용: ${body}`);
+
+  return { sent: result.successCount, failed: result.failureCount, cleaned: toClean.length };
+}
+
 app.post('/api/notifications/send-all', async (req, res) => {
   if (!admin.apps.length) {
     return res.status(503).json({ error: 'Firebase Admin 미초기화' });
   }
   try {
     const { title, body, screen } = req.body;
-    const [rows] = await db.query(
-      'SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL'
-    );
-    if (!rows.length) {
+    const stats = await broadcastNotification(title, body, screen ?? 'home');
+    if (stats.sent === 0 && stats.failed === 0) {
       return res.json({ message: '발송 대상 없음', sent: 0 });
     }
-    const tokens = rows.map((r) => r.fcm_token);
-    const result = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      data: { screen: screen ?? 'home' },
-    });
-    res.json({ message: '알림 발송 완료', sent: result.successCount, failed: result.failureCount });
+    res.json({ message: '알림 발송 완료', ...stats });
   } catch (error) {
     console.error('[POST /api/notifications/send-all]', error.message);
     res.status(500).json({ error: '알림 발송 실패' });
@@ -740,23 +769,9 @@ async function generateTrendingMessage() {
 async function sendScheduledNotification() {
   if (!admin.apps.length) return;
   try {
-    const [rows] = await db.query(
-      'SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL'
-    );
-    if (!rows.length) return;
-
-    const title = '냉집사';
     const aiMessage = await generateTrendingMessage();
     const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요! 🍳';
-
-    const tokens = rows.map((r) => r.fcm_token);
-    const result = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      data: { screen: 'home' },
-    });
-    console.log(`[스케줄러] 알림 발송 완료 — 성공: ${result.successCount}, 실패: ${result.failureCount}`);
-    console.log(`[스케줄러] 메시지: ${body}`);
+    await broadcastNotification('냉집사', body, 'home');
   } catch (error) {
     console.error('[스케줄러] 알림 발송 실패:', error.message);
   }
