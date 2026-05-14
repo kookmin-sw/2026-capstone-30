@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../constants.dart';
 import '../services/api_service.dart';
 
@@ -27,24 +28,78 @@ class ChatbotSheet extends StatefulWidget {
 
 class _ChatbotSheetState extends State<ChatbotSheet> {
   final _api = ApiService();
+  final _speech = SpeechToText();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [];
 
   bool _isLoading = false;
   bool _isSuggestionLoading = true;
+  bool _isListening = false;
+  bool _speechAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _loadSuggestion();
+    _initSpeech();
   }
 
   @override
   void dispose() {
+    _speech.stop();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initSpeech() async {
+    final available = await _speech.initialize(
+      onError: (_) => setState(() => _isListening = false),
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (mounted) setState(() => _isListening = false);
+        }
+      },
+    );
+    if (mounted) setState(() => _speechAvailable = available);
+  }
+
+  Future<void> _toggleListening() async {
+    if (!_speechAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('음성인식을 사용할 수 없습니다.')),
+      );
+      return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+      return;
+    }
+
+    setState(() {
+      _isListening = true;
+      _textController.clear();
+    });
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          _textController.text = result.recognizedWords;
+          _textController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _textController.text.length),
+          );
+        });
+      },
+      localeId: 'ko_KR',
+      pauseFor: const Duration(seconds: 4),
+      listenOptions: SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: true,
+      ),
+    );
   }
 
   Future<void> _loadSuggestion() async {
@@ -274,46 +329,142 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey[200]!)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _textController,
-              maxLines: 4,
-              minLines: 1,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: _isSuggestionLoading ? '추천 문구 불러오는 중...' : '무엇이든 물어보세요',
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(22),
-                  borderSide: BorderSide.none,
+          if (_isListening)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _PulsingDot(),
+                  const SizedBox(width: 8),
+                  Text('듣고 있어요...', style: TextStyle(color: kPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // 마이크 버튼
+              GestureDetector(
+                onTap: _toggleListening,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: _isListening ? Colors.red : kAccentLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none_rounded,
+                    color: _isListening ? Colors.white : kPrimary,
+                    size: 22,
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _isLoading ? null : _send,
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: _isLoading ? Colors.grey[300] : kPrimary,
-                shape: BoxShape.circle,
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  maxLines: 4,
+                  minLines: 1,
+                  textInputAction: TextInputAction.newline,
+                  decoration: InputDecoration(
+                    hintText: _isSuggestionLoading
+                        ? '추천 문구 불러오는 중...'
+                        : _isListening
+                            ? '말씀해주세요...'
+                            : '무엇이든 물어보세요',
+                    filled: true,
+                    fillColor: _isListening
+                        ? Colors.red.withValues(alpha: 0.05)
+                        : Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: _isListening
+                          ? const BorderSide(color: Colors.red, width: 1.5)
+                          : BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: _isListening
+                          ? const BorderSide(color: Colors.red, width: 1.5)
+                          : BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: _isListening
+                          ? const BorderSide(color: Colors.red, width: 1.5)
+                          : const BorderSide(color: kPrimary, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
               ),
-              child: _isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(13),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-            ),
+              const SizedBox(width: 8),
+              // 전송 버튼
+              GestureDetector(
+                onTap: _isLoading ? null : _send,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: _isLoading ? Colors.grey[300] : kPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: _isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(13),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PulsingDot extends StatefulWidget {
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))
+      ..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.5 + 0.5 * _anim.value),
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }

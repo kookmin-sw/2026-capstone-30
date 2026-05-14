@@ -21,6 +21,7 @@ dependencies:
   flutter_local_notifications: ^17.0.0
   youtube_player_flutter: ^9.0.3
   youtube_explode_dart: ^2.3.6
+  speech_to_text: ^7.0.0
 
 dev_dependencies:
   flutter_test:
