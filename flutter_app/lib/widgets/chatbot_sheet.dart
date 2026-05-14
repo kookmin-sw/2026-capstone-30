@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../constants.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class _ChatMessage {
   final String content;
@@ -28,6 +29,7 @@ class ChatbotSheet extends StatefulWidget {
 
 class _ChatbotSheetState extends State<ChatbotSheet> {
   final _api = ApiService();
+  final _storage = StorageService();
   final _speech = SpeechToText();
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
@@ -244,6 +246,52 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     );
   }
 
+  // AI 응답에서 레시피명 추출 시도
+  String _extractRecipeName(String text) {
+    final patterns = [
+      RegExp(r'(\S{2,8})\s*만드는\s*법'),
+      RegExp(r'(\S{2,8})\s*레시피'),
+      RegExp(r'(\S{2,8})\s*요리'),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) return match.group(1)!.trim();
+    }
+    return '';
+  }
+
+  Future<void> _saveRecipe(String messageText) async {
+    final name = _extractRecipeName(messageText);
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('레시피 이름을 찾을 수 없어요.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$name 레시피 저장 중...'), duration: const Duration(seconds: 60)),
+    );
+
+    try {
+      final detail = await _api.getRecipeDetail(name, []);
+      await _storage.saveRecipe(detail);
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name 레시피가 저장됐어요!'), backgroundColor: kPrimary),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장에 실패했어요. 다시 시도해주세요.')),
+        );
+      }
+    }
+  }
+
   Widget _buildBubble(_ChatMessage msg) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -261,25 +309,45 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
             const SizedBox(width: 6),
           ],
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: msg.isUser ? kPrimary : Colors.grey[100],
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(msg.isUser ? 18 : 4),
-                  bottomRight: Radius.circular(msg.isUser ? 4 : 18),
+            child: Column(
+              crossAxisAlignment: msg.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: msg.isUser ? kPrimary : Colors.grey[100],
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(msg.isUser ? 18 : 4),
+                      bottomRight: Radius.circular(msg.isUser ? 4 : 18),
+                    ),
+                  ),
+                  child: Text(
+                    msg.content,
+                    style: TextStyle(
+                      color: msg.isUser ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                msg.content,
-                style: TextStyle(
-                  color: msg.isUser ? Colors.white : Colors.black87,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
+                if (!msg.isUser)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: GestureDetector(
+                      onTap: () => _saveRecipe(msg.content),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bookmark_add_outlined, size: 13, color: Colors.grey[400]),
+                          const SizedBox(width: 3),
+                          Text('레시피 저장', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           if (msg.isUser) const SizedBox(width: 6),
