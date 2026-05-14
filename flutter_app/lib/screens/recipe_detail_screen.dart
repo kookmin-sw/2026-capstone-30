@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
@@ -31,6 +32,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isSaved = false;
   bool _isSaving = false;
   final Map<String, Map<String, dynamic>> _substitutes = {};
+  List<YoutubeLink> _resolvedLinks = [];
+  bool _isLoadingVideos = false;
 
   final _api = ApiService();
   final _storage = StorageService();
@@ -60,12 +63,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     try {
       final d = await _api.getRecipeDetail(widget.recipeName, widget.ingredients);
       if (mounted) setState(() { _detail = d; _isLoading = false; });
+      _resolveVideoIds();
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('로드 실패: $e')));
       }
     }
+  }
+
+  Future<void> _resolveVideoIds() async {
+    if (_detail == null || _detail!.youtubeLinks.isEmpty) return;
+    if (mounted) setState(() => _isLoadingVideos = true);
+    final yt = YoutubeExplode();
+    final resolved = <YoutubeLink>[];
+    for (final link in _detail!.youtubeLinks) {
+      try {
+        final results = await yt.search.search(link.title);
+        final video = results.firstOrNull;
+        resolved.add(video != null ? link.withVideoId(video.id.value) : link);
+      } catch (_) {
+        resolved.add(link);
+      }
+    }
+    yt.close();
+    if (mounted) setState(() { _resolvedLinks = resolved; _isLoadingVideos = false; });
   }
 
   Future<void> _checkSaved() async {
