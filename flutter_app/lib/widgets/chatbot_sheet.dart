@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../constants.dart';
+import '../models/recipe.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
@@ -241,7 +242,12 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
       itemCount: _messages.length + (_isLoading ? 1 : 0),
       itemBuilder: (_, i) {
         if (i == _messages.length) return _buildTypingIndicator();
-        return _buildBubble(_messages[i]);
+        final msg = _messages[i];
+        // AI 답변이면 직전 사용자 질문도 전달 (이름 추출 정확도 향상)
+        final prevUserMsg = (!msg.isUser && i > 0 && _messages[i - 1].isUser)
+            ? _messages[i - 1].content
+            : null;
+        return _buildBubble(msg, prevUserMsg: prevUserMsg);
       },
     );
   }
@@ -260,39 +266,59 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     return '';
   }
 
-  Future<void> _saveRecipe(String messageText) async {
-    final name = _extractRecipeName(messageText);
+  Future<void> _saveRecipe(String messageText, {String? prevUserMsg}) async {
+    // 사용자 질문 → AI 응답 순으로 이름 추출 시도
+    final name = (prevUserMsg != null ? _extractRecipeName(prevUserMsg) : '') .isNotEmpty
+        ? _extractRecipeName(prevUserMsg!)
+        : _extractRecipeName(messageText);
+
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('레시피 이름을 찾을 수 없어요.')),
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => _ResultDialog(success: false, message: '레시피 이름을 찾을 수 없어요.'),
+        );
+      }
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name 레시피 저장 중...'), duration: const Duration(seconds: 60)),
+    // 로딩 다이얼로그
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _LoadingDialog(),
     );
 
     try {
       final detail = await _api.getRecipeDetail(name, []);
-      await _storage.saveRecipe(detail);
+      // 추출한 이름으로 강제 저장 (서버가 다른 이름 반환해도 동일하게)
+      final toSave = RecipeDetail(
+        name: name,
+        ingredients: detail.ingredients,
+        steps: detail.steps,
+        tips: detail.tips,
+        youtubeLinks: detail.youtubeLinks,
+      );
+      await _storage.saveRecipe(toSave);
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name 레시피가 저장됐어요!'), backgroundColor: kPrimary),
+        Navigator.pop(context); // 로딩 닫기
+        showDialog(
+          context: context,
+          builder: (_) => _ResultDialog(success: true, message: '"$name" 레시피가\n저장됐어요!'),
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장에 실패했어요. 다시 시도해주세요.')),
+        Navigator.pop(context); // 로딩 닫기
+        showDialog(
+          context: context,
+          builder: (_) => _ResultDialog(success: false, message: '저장에 실패했어요.\n다시 시도해주세요.'),
         );
       }
     }
   }
 
-  Widget _buildBubble(_ChatMessage msg) {
+  Widget _buildBubble(_ChatMessage msg, {String? prevUserMsg}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -336,7 +362,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 4),
                     child: GestureDetector(
-                      onTap: () => _saveRecipe(msg.content),
+                      onTap: () => _saveRecipe(msg.content, prevUserMsg: prevUserMsg),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -494,6 +520,81 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── 저장 로딩 다이얼로그 ──────────────────────────────────────
+class _LoadingDialog extends StatelessWidget {
+  const _LoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)),
+            SizedBox(width: 16),
+            Text('레시피 저장 중...', style: TextStyle(fontSize: 15)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 저장 결과 다이얼로그 ──────────────────────────────────────
+class _ResultDialog extends StatelessWidget {
+  final bool success;
+  final String message;
+  const _ResultDialog({required this.success, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: success ? kAccentLight : Colors.red[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                success ? Icons.bookmark_added_rounded : Icons.error_outline_rounded,
+                color: success ? kPrimary : Colors.red,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                style: FilledButton.styleFrom(
+                  backgroundColor: success ? kPrimary : Colors.grey,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('확인'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
