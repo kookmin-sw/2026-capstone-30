@@ -793,6 +793,56 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// ── 챗봇 초기 문구 추천 API ───────────────────────────────────
+app.get('/api/chat/suggest', async (req, res) => {
+  try {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const hour = now.getHours();
+    const timeSlot =
+      hour < 6  ? '새벽' :
+      hour < 10 ? '아침' :
+      hour < 14 ? '점심' :
+      hour < 18 ? '오후' :
+      hour < 21 ? '저녁' : '밤';
+    const season =
+      month >= 3 && month <= 5 ? '봄' :
+      month >= 6 && month <= 8 ? '여름' :
+      month >= 9 && month <= 11 ? '가을' : '겨울';
+
+    const response = await callOpenRouter([
+      {
+        role: 'system',
+        content: `당신은 냉집사 앱의 챗봇입니다. 사용자가 AI와 대화를 시작할 때 쓸 기본 입력 문구를 한 줄 만들어주세요.`,
+      },
+      {
+        role: 'user',
+        content: `오늘은 ${month}월 ${day}일 ${timeSlot}이고 계절은 ${season}입니다.
+현재 날짜를 기반으로 오늘의 날씨·기온·기념일·SNS 유행 음식 등을 종합적으로 고려해서
+이 상황에 가장 잘 어울리는 음식 하나를 골라 아래 형식으로 문구를 작성해주세요.
+
+형식: "{음식명} 만드는 법 알려줘"
+조건:
+- 반드시 위 형식만 출력 (다른 설명 없이)
+- 한국 음식 위주로 선택
+- 음식명은 2~6글자`,
+      },
+    ], 2, 60);
+
+    if (!response.ok) {
+      return res.json({ suggest: '오늘 뭐 먹을까? 추천받기' });
+    }
+
+    const data = await response.json();
+    const suggest = (data.choices?.[0]?.message?.content ?? '').trim();
+    res.json({ suggest: suggest || '오늘 뭐 먹을까? 추천받기' });
+  } catch (error) {
+    console.error('[GET /api/chat/suggest]', error.message);
+    res.json({ suggest: '오늘 뭐 먹을까? 추천받기' });
+  }
+});
+
 // Multer 에러 핸들러
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message.includes('허용')) {
