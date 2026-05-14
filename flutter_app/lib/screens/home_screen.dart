@@ -85,7 +85,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  File? _image;
+  List<File> _images = [];
   // ingredient_id로 판단하기, null이면 로컬(비로그인), 값 있으면 DB(로그인)
   List<Map<String, dynamic>> _ingredients = [];
   List<Recipe> _recipes = [];
@@ -167,7 +167,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (_isLoadingRecipes) return '어떤 레시피가 맛있을지 생각 중이에요...';
     if (_recipes.isNotEmpty) return '맛있는 레시피를 찾았어요!\n골라서 요리해 보세요';
     if (_ingredients.isNotEmpty) return '재료 확인 완료!\n버튼을 눌러 레시피를 추천받아보세요';
-    if (_image != null) return '사진 업로드 완료!\n재료를 분석했어요';
+    if (_images.isNotEmpty) return '사진 업로드 완료!\n재료를 분석했어요';
     return '냉장고 사진을 찍어주세요!\n제가 레시피를 추천해드릴게요';
   }
 
@@ -204,7 +204,7 @@ class HomeScreenState extends State<HomeScreen> {
                 child: Icon(Icons.photo_library, color: kPrimary),
               ),
               title: const Text('갤러리에서 선택'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+              onTap: () { Navigator.pop(context); _pickMultipleImages(); },
             ),
             const SizedBox(height: 8),
           ],
@@ -222,14 +222,15 @@ class HomeScreenState extends State<HomeScreen> {
     );
     if (xFile == null) return;
 
+    final newImage = File(xFile.path);
     setState(() {
-      _image = File(xFile.path);
+      _images.add(newImage);
       _recipes = [];
       _isAnalyzing = true;
     });
 
     try {
-      final result = await _api.analyzeImage(_image!);
+      final result = await _api.analyzeImage(newImage);
       if (result.isNotEmpty) {
         final items = result
             .map((n) => <String, dynamic>{'name': n, 'category': classifyIngredient(n)})
@@ -238,7 +239,6 @@ class HomeScreenState extends State<HomeScreen> {
           await _api.saveIngredients(_userId!, items);
           await _loadFromServer();
         } else {
-          // 비로그인: 메모리 + 로컬에 누적 (중복 제거)
           final existing = _names.toSet();
           final now = DateTime.now().toIso8601String();
           for (final item in items) {
@@ -253,6 +253,58 @@ class HomeScreenState extends State<HomeScreen> {
           }
           await _persistLocal();
         }
+      }
+      setState(() => _isAnalyzing = false);
+    } catch (e) {
+      setState(() => _isAnalyzing = false);
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _pickMultipleImages() async {
+    final xFiles = await _picker.pickMultiImage(
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 75,
+    );
+    if (xFiles.isEmpty) return;
+
+    final newImages = xFiles.map((x) => File(x.path)).toList();
+    setState(() {
+      _images.addAll(newImages);
+      _recipes = [];
+      _isAnalyzing = true;
+    });
+
+    try {
+      for (final img in newImages) {
+        final result = await _api.analyzeImage(img);
+        if (result.isNotEmpty) {
+          final items = result
+              .map((n) => <String, dynamic>{'name': n, 'category': classifyIngredient(n)})
+              .toList();
+          if (widget.loggedIn && _userId != null) {
+            await _api.saveIngredients(_userId!, items);
+          } else {
+            final existing = _names.toSet();
+            final now = DateTime.now().toIso8601String();
+            for (final item in items) {
+              if (existing.add(item['name'] as String)) {
+                _ingredients.add({
+                  'ingredient_id': null,
+                  'name': item['name'],
+                  'category': item['category'],
+                  'created_at': now,
+                });
+              }
+            }
+          }
+        }
+      }
+      if (widget.loggedIn && _userId != null) {
+        await _loadFromServer();
+      } else {
+        await _persistLocal();
       }
       setState(() => _isAnalyzing = false);
     } catch (e) {
@@ -402,7 +454,7 @@ class HomeScreenState extends State<HomeScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _ImageUploadCard(
-                  image: _image,
+                  images: _images,
                   isAnalyzing: _isAnalyzing,
                   onTap: _showSourceSheet,
                 ),
@@ -548,73 +600,103 @@ class _StaleBanner extends StatelessWidget {
 }
 
 class _ImageUploadCard extends StatelessWidget {
-  final File? image;
+  final List<File> images;
   final bool isAnalyzing;
   final VoidCallback onTap;
 
   const _ImageUploadCard({
-    required this.image, required this.isAnalyzing, required this.onTap,
+    required this.images, required this.isAnalyzing, required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 220,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: image == null ? Border.all(color: kPrimary.withOpacity(0.3), width: 2, strokeAlign: BorderSide.strokeAlignInside) : null,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+    if (images.isEmpty) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 220,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: kPrimary.withOpacity(0.3), width: 2, strokeAlign: BorderSide.strokeAlignInside),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_photo_alternate_outlined, size: 64, color: kPrimary.withOpacity(0.7)),
+              const SizedBox(height: 12),
+              const Text('냉장고 사진을 업로드하세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('카메라 촬영 또는 갤러리 선택', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+            ],
+          ),
         ),
-        child: image != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.file(image!, fit: BoxFit.cover),
-                    if (isAnalyzing)
-                      Container(
-                        color: Colors.black54,
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(color: Colors.white),
-                            SizedBox(height: 12),
-                            Text('AI가 재료를 분석 중...', style: TextStyle(color: Colors.white, fontSize: 15)),
-                          ],
-                        ),
+      );
+    }
+
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(8),
+              itemCount: images.length + 1,
+              itemBuilder: (context, index) {
+                if (index == images.length) {
+                  return GestureDetector(
+                    onTap: onTap,
+                    child: Container(
+                      width: 100,
+                      margin: const EdgeInsets.only(left: 8),
+                      decoration: BoxDecoration(
+                        color: kAccentLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: kPrimary.withOpacity(0.4), width: 1.5),
                       ),
-                    Positioned(
-                      right: 10, bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(10)),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.camera_alt, color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text('재촬영', style: TextStyle(color: Colors.white, fontSize: 12)),
-                          ],
-                        ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate, color: kPrimary, size: 32),
+                          SizedBox(height: 6),
+                          Text('사진 추가', style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+                        ],
                       ),
                     ),
+                  );
+                }
+                return Container(
+                  width: 160,
+                  margin: EdgeInsets.only(left: index == 0 ? 0 : 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(images[index], fit: BoxFit.cover),
+                  ),
+                );
+              },
+            ),
+            if (isAnalyzing)
+              Container(
+                color: Colors.black54,
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 12),
+                    Text('AI가 재료를 분석 중...', style: TextStyle(color: Colors.white, fontSize: 15)),
                   ],
                 ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_photo_alternate_outlined, size: 64, color: kPrimary.withOpacity(0.7)),
-                  const SizedBox(height: 12),
-                  const Text('냉장고 사진을 업로드하세요', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text('카메라 촬영 또는 갤러리 선택', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                ],
               ),
+          ],
+        ),
       ),
     );
   }
