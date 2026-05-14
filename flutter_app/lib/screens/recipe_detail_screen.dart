@@ -147,14 +147,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Future<void> _openCoupang(String ingredient) async {
+  Future<void> _openShoppingLink(String ingredient) async {
     final uri = Uri.parse(
       'https://search.shopping.naver.com/search/all?query=${Uri.encodeComponent(ingredient)}',
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('쿠팡을 열 수 없습니다.')),
+          const SnackBar(content: Text('쇼핑 링크를 열 수 없습니다.')),
         );
       }
     }
@@ -217,7 +217,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               recipeName: widget.recipeName,
               missing: missing,
               substitutes: _substitutes,
-              onCoupang: _openCoupang,
+              onShoppingLink: _openShoppingLink,
               onAddToShopping: widget.onAddToShopping,
             ),
           ],
@@ -285,14 +285,14 @@ class _MissingIngredientsCard extends StatelessWidget {
   final String recipeName;
   final List<String> missing;
   final Map<String, Map<String, dynamic>> substitutes;
-  final void Function(String) onCoupang;
+  final void Function(String) onShoppingLink;
   final void Function(List<String>, String)? onAddToShopping;
 
   const _MissingIngredientsCard({
     required this.recipeName,
     required this.missing,
     required this.substitutes,
-    required this.onCoupang,
+    required this.onShoppingLink,
     this.onAddToShopping,
   });
 
@@ -358,7 +358,7 @@ class _MissingIngredientsCard extends StatelessWidget {
                         const SizedBox(width: 6),
                       ],
                       ElevatedButton.icon(
-                        onPressed: () => onCoupang(ing),
+                        onPressed: () => onShoppingLink(ing),
                         icon: const Icon(Icons.shopping_bag_outlined, size: 14),
                         label: const Text('구매', style: TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(

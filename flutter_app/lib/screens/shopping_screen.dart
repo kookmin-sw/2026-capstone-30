@@ -41,14 +41,14 @@ class ShoppingScreenState extends State<ShoppingScreen> {
     setState(() => _items.clear());
   }
 
-  Future<void> _openCoupang(String ingredient) async {
+  Future<void> _openShoppingLink(String ingredient) async {
     final uri = Uri.parse(
       'https://search.shopping.naver.com/search/all?query=${Uri.encodeComponent(ingredient)}',
     );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('쿠팡을 열 수 없습니다.')),
+          const SnackBar(content: Text('쇼핑 링크를 열 수 없습니다.')),
         );
       }
     }
@@ -162,7 +162,7 @@ class ShoppingScreenState extends State<ShoppingScreen> {
           (entry) => _RecipeGroup(
             recipeName: entry.key,
             items: entry.value,
-            onCoupang: _openCoupang,
+            onShoppingLink: _openShoppingLink,
             onToggle: (item) => setState(() => item.checked = !item.checked),
           ),
         ),
@@ -175,13 +175,13 @@ class ShoppingScreenState extends State<ShoppingScreen> {
 class _RecipeGroup extends StatelessWidget {
   final String recipeName;
   final List<ShoppingItem> items;
-  final void Function(String) onCoupang;
+  final void Function(String) onShoppingLink;
   final void Function(ShoppingItem) onToggle;
 
   const _RecipeGroup({
     required this.recipeName,
     required this.items,
-    required this.onCoupang,
+    required this.onShoppingLink,
     required this.onToggle,
   });
 
@@ -234,7 +234,7 @@ class _RecipeGroup extends StatelessWidget {
           ...items.map(
             (item) => _IngredientTile(
               item: item,
-              onCoupang: () => onCoupang(item.ingredient),
+              onShoppingLink: () => onShoppingLink(item.ingredient),
               onToggle: () => onToggle(item),
             ),
           ),
@@ -246,12 +246,12 @@ class _RecipeGroup extends StatelessWidget {
 
 class _IngredientTile extends StatelessWidget {
   final ShoppingItem item;
-  final VoidCallback onCoupang;
+  final VoidCallback onShoppingLink;
   final VoidCallback onToggle;
 
   const _IngredientTile({
     required this.item,
-    required this.onCoupang,
+    required this.onShoppingLink,
     required this.onToggle,
   });
 
@@ -275,7 +275,7 @@ class _IngredientTile extends StatelessWidget {
       trailing: item.checked
           ? const Icon(Icons.check_circle, color: kPrimary, size: 22)
           : ElevatedButton.icon(
-              onPressed: onCoupang,
+              onPressed: onShoppingLink,
               icon: const Icon(Icons.shopping_bag_outlined, size: 15),
               label: const Text('구매', style: TextStyle(fontSize: 13)),
               style: ElevatedButton.styleFrom(

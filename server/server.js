@@ -759,7 +759,7 @@ app.post('/api/chat', async (req, res) => {
     let ingredientContext = '';
     if (userId) {
       try {
-        const [rows] = await pool.query(
+        const [rows] = await db.query(
           'SELECT name FROM ingredients WHERE user_id = ?',
           [userId]
         );
