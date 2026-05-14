@@ -245,6 +245,28 @@ class ApiService {
         .timeout(_timeout);
   }
 
+  Future<List<Map<String, dynamic>>> getRecipeSteps(
+    String recipeName,
+    List<String> ingredients,
+  ) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/recipe/steps'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'recipeName': recipeName,
+            'ingredients': ingredients,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return (data['steps'] as List).map((s) => Map<String, dynamic>.from(s)).toList();
+    }
+    throw Exception(_errorMsg(res));
+  }
+
   Future<String> sendChat(
     List<Map<String, dynamic>> messages, {
     int? userId,
