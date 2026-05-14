@@ -48,6 +48,33 @@ const Map<String, IconData> _categoryIcons = {
   '기타': Icons.category,
 };
 
+// 카테고리별 보관 기한(일). 양념/기타는 추적 안 함.
+const Map<String, int> _shelfLifeDays = {
+  '고기': 3,
+  '해산물': 2,
+  '유제품': 7,
+  '채소': 5,
+  '과일': 5,
+};
+
+int _daysSince(DateTime created) {
+  final now = DateTime.now();
+  final c = DateTime(created.year, created.month, created.day);
+  final t = DateTime(now.year, now.month, now.day);
+  return t.difference(c).inDays;
+}
+
+// 만료 1일 전부터 '오래된' 으로 판정
+bool _isStale(Map<String, dynamic> item) {
+  final days = _shelfLifeDays[item['category'] as String? ?? ''];
+  if (days == null) return false;
+  final raw = item['created_at'] as String?;
+  if (raw == null) return false;
+  final created = DateTime.tryParse(raw)?.toLocal();
+  if (created == null) return false;
+  return _daysSince(created) >= days - 1;
+}
+
 class HomeScreen extends StatefulWidget {
   final bool loggedIn;
   final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
@@ -117,6 +144,7 @@ class HomeScreenState extends State<HomeScreen> {
                 'ingredient_id': null,
                 'name': e['name'],
                 'category': e['category'] ?? '기타',
+                'created_at': e['created_at'],
               })
           .toList());
     }
@@ -127,6 +155,7 @@ class HomeScreenState extends State<HomeScreen> {
             .map((e) => <String, dynamic>{
                   'name': e['name'],
                   'category': e['category'] ?? '기타',
+                  'created_at': e['created_at'],
                 })
             .toList(),
       );
@@ -211,12 +240,14 @@ class HomeScreenState extends State<HomeScreen> {
         } else {
           // 비로그인: 메모리 + 로컬에 누적 (중복 제거)
           final existing = _names.toSet();
+          final now = DateTime.now().toIso8601String();
           for (final item in items) {
             if (existing.add(item['name'] as String)) {
               _ingredients.add({
                 'ingredient_id': null,
                 'name': item['name'],
                 'category': item['category'],
+                'created_at': now,
               });
             }
           }
@@ -295,6 +326,7 @@ class HomeScreenState extends State<HomeScreen> {
                         'ingredient_id': null,
                         'name': t,
                         'category': cat,
+                        'created_at': DateTime.now().toIso8601String(),
                       }));
                   await _persistLocal();
                 }
@@ -310,6 +342,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final staleNames = _ingredients.where(_isStale).map((e) => e['name'] as String).toList();
+
     return Scaffold(
       backgroundColor: kBackground,
       body: CustomScrollView(
@@ -375,6 +409,11 @@ class HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 _CatBubble(message: _catMessage),
                 const SizedBox(height: 12),
+
+                if (staleNames.isNotEmpty) ...[
+                  _StaleBanner(names: staleNames),
+                  const SizedBox(height: 12),
+                ],
 
                 _IngredientsCard(
                   ingredients: _ingredients,
@@ -479,6 +518,35 @@ class _CatBubble extends StatelessWidget {
   }
 }
 
+class _StaleBanner extends StatelessWidget {
+  final List<String> names;
+  const _StaleBanner({required this.names});
+
+  String get _text {
+    if (names.length <= 3) return '오래된 재료가 있어요! ${names.join(', ')}';
+    return '오래된 재료가 있어요! ${names.take(2).join(', ')} 등 ${names.length}개';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE89B2A).withOpacity(0.5)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.schedule, color: Color(0xFFE89B2A), size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(_text, style: const TextStyle(fontSize: 13.5, color: Color(0xFF8C5A10), height: 1.4)),
+        ),
+      ]),
+    );
+  }
+}
+
 class _ImageUploadCard extends StatelessWidget {
   final File? image;
   final bool isAnalyzing;
@@ -569,6 +637,17 @@ class _IngredientsCard extends StatelessWidget {
       final cat = (item['category'] as String?) ?? '기타';
       final key = _categoryOrder.contains(cat) ? cat : '기타';
       map.putIfAbsent(key, () => []).add(item);
+    }
+    // 각 카테고리 안에서 등록일 오름차순(먼저 들어간 게 위). null은 맨 뒤.
+    for (final list in map.values) {
+      list.sort((a, b) {
+        final aRaw = a['created_at'] as String?;
+        final bRaw = b['created_at'] as String?;
+        if (aRaw == null && bRaw == null) return 0;
+        if (aRaw == null) return 1;
+        if (bRaw == null) return -1;
+        return aRaw.compareTo(bRaw);
+      });
     }
     return map;
   }
