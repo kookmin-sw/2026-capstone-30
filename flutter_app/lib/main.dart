@@ -7,6 +7,7 @@ import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
 import 'screens/shopping_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 
@@ -156,7 +157,11 @@ class _MainNavigatorState extends State<MainNavigator> {
   }
 
   Future<void> _check() async {
-    final info = await _storage.getLoginInfo();
+    final results = await Future.wait([
+      _storage.getLoginInfo(),
+      Future.delayed(const Duration(milliseconds: 2000)),
+    ]);
+    final info = results[0] as Map<String, dynamic>?;
     if (!mounted) return;
     setState(() { _loggedIn = info != null; _checking = false; });
   }
@@ -257,7 +262,7 @@ class _MainNavigatorState extends State<MainNavigator> {
   @override
   Widget build(BuildContext context) {
     if (_checking) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const SplashScreen();
     }
 
     return Stack(
