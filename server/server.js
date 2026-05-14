@@ -843,6 +843,66 @@ app.get('/api/chat/suggest', async (req, res) => {
   }
 });
 
+// ── 단계별 요리 가이드 API ────────────────────────────────────
+app.post('/api/recipe/steps', async (req, res) => {
+  const { recipeName, ingredients } = req.body;
+
+  if (!recipeName) {
+    return res.status(400).json({ error: '레시피 이름이 없습니다.' });
+  }
+
+  try {
+    const ingredientStr = Array.isArray(ingredients) && ingredients.length > 0
+      ? `보유 재료: ${ingredients.join(', ')}`
+      : '';
+
+    const response = await callOpenRouter([
+      {
+        role: 'system',
+        content: `당신은 친절한 요리 선생님입니다. 사용자가 요리를 단계별로 따라할 수 있도록 명확하고 실용적인 가이드를 제공합니다.`,
+      },
+      {
+        role: 'user',
+        content: `"${recipeName}" 요리 방법을 단계별로 알려주세요.
+${ingredientStr}
+
+아래 JSON 형식으로만 응답해주세요. 다른 설명은 절대 포함하지 마세요.
+단계는 5~9개 사이로 구성하고, 각 단계는 실제로 따라할 수 있게 구체적으로 작성하세요.
+
+[
+  {
+    "step": 1,
+    "title": "단계 제목 (10자 이내)",
+    "description": "이 단계에서 할 일을 구체적으로 설명 (2~3문장)",
+    "tip": "이 단계의 유용한 팁 (없으면 빈 문자열)"
+  }
+]`,
+      },
+    ], 3, 2048);
+
+    if (!response.ok) {
+      return res.status(500).json({ error: 'AI 응답 오류' });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content ?? '';
+
+    try {
+      const steps = JSON.parse(content.match(/\[[\s\S]*\]/)?.[0] ?? '[]');
+      if (!Array.isArray(steps) || steps.length === 0) {
+        throw new Error('steps 배열이 비어있음');
+      }
+      res.json({ steps });
+    } catch {
+      console.error('[POST /api/recipe/steps] JSON 파싱 실패:', content);
+      res.status(500).json({ error: '단계 데이터를 생성하지 못했습니다.' });
+    }
+  } catch (error) {
+    console.error('[POST /api/recipe/steps]', error.message);
+    res.status(500).json({ error: '요리 가이드 생성 실패' });
+  }
+});
+
 // Multer 에러 핸들러
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message.includes('허용')) {
