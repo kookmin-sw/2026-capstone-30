@@ -30,12 +30,24 @@ class Recipe {
 class YoutubeLink {
   final String title;
   final String url;
-  YoutubeLink({required this.title, required this.url});
+  final String? videoId;
 
-  factory YoutubeLink.fromJson(Map<String, dynamic> json) =>
-      YoutubeLink(title: json['title'] ?? '', url: json['url'] ?? '');
+  YoutubeLink({required this.title, required this.url, this.videoId});
 
-  Map<String, dynamic> toJson() => {'title': title, 'url': url};
+  factory YoutubeLink.fromJson(Map<String, dynamic> json) => YoutubeLink(
+        title: json['title'] ?? '',
+        url: json['url'] ?? '',
+        videoId: json['videoId'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'url': url,
+        if (videoId != null) 'videoId': videoId,
+      };
+
+  YoutubeLink withVideoId(String id) =>
+      YoutubeLink(title: title, url: url, videoId: id);
 }
 
 class RecipeDetail {
