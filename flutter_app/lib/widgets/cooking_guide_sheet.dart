@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../constants.dart';
 
 class CookingStep {
@@ -58,6 +59,9 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
   late Animation<Offset> _slideAnim;
   late Animation<double> _fadeAnim;
 
+  final FlutterTts _tts = FlutterTts();
+  bool _isSpeaking = false;
+
   bool get _isLast => _current == widget.steps.length - 1;
   bool get _isDone => _current >= widget.steps.length;
 
@@ -70,10 +74,41 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
     );
     _setupAnimation(forward: true);
     _animCtrl.forward();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    await _tts.setLanguage('ko-KR');
+    await _tts.setSpeechRate(0.5);
+    await _tts.setVolume(1.0);
+    await _tts.setPitch(1.0);
+    _tts.setStartHandler(() {
+      if (mounted) setState(() => _isSpeaking = true);
+    });
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _isSpeaking = false);
+    });
+    _tts.setCancelHandler(() {
+      if (mounted) setState(() => _isSpeaking = false);
+    });
+    // 첫 단계 자동 읽기
+    _speakCurrentStep();
+  }
+
+  Future<void> _speakCurrentStep() async {
+    if (_isDone) return;
+    final step = widget.steps[_current];
+    await _tts.stop();
+    await _tts.speak('${step.title}. ${step.description}');
+  }
+
+  Future<void> _stopSpeaking() async {
+    await _tts.stop();
   }
 
   @override
   void dispose() {
+    _tts.stop();
     _animCtrl.dispose();
     super.dispose();
   }
@@ -92,6 +127,7 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
     _animCtrl.reset();
     setState(() => _current++);
     _animCtrl.forward();
+    _speakCurrentStep();
   }
 
   void _prev() {
@@ -100,6 +136,7 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
     _animCtrl.reset();
     setState(() => _current--);
     _animCtrl.forward();
+    _speakCurrentStep();
   }
 
   @override
@@ -164,6 +201,16 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
               ],
             ),
           ),
+          // TTS 재생/정지 버튼
+          if (!_isDone)
+            IconButton(
+              onPressed: _isSpeaking ? _stopSpeaking : _speakCurrentStep,
+              icon: Icon(
+                _isSpeaking ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
+                color: _isSpeaking ? Colors.red : kPrimary,
+              ),
+              tooltip: _isSpeaking ? '읽기 중지' : '다시 듣기',
+            ),
           if (!_isDone)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -212,7 +259,6 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 단계 번호 + 제목
               Row(
                 children: [
                   Container(
@@ -235,10 +281,14 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
                     step.title,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                  // 읽는 중 표시
+                  if (_isSpeaking) ...[
+                    const SizedBox(width: 8),
+                    const _SpeakingIndicator(),
+                  ],
                 ],
               ),
               const SizedBox(height: 16),
-              // 챗봇 말풍선 스타일 설명
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -268,7 +318,6 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
                   ),
                 ],
               ),
-              // 팁
               if (step.tip.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -295,7 +344,6 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
                 ),
               ],
               const SizedBox(height: 12),
-              // 다음 단계 미리보기
               if (!_isLast)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -404,6 +452,49 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// 읽는 중 애니메이션 인디케이터
+class _SpeakingIndicator extends StatefulWidget {
+  const _SpeakingIndicator();
+
+  @override
+  State<_SpeakingIndicator> createState() => _SpeakingIndicatorState();
+}
+
+class _SpeakingIndicatorState extends State<_SpeakingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _ctrl,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.volume_up, size: 14, color: kPrimary),
+          SizedBox(width: 3),
+          Text('읽는 중', style: TextStyle(fontSize: 11, color: kPrimary)),
         ],
       ),
     );

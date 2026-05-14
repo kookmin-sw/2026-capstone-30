@@ -22,6 +22,7 @@ dependencies:
   youtube_player_flutter: ^9.0.3
   youtube_explode_dart: ^2.3.6
   speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
 
 dev_dependencies:
   flutter_test:
