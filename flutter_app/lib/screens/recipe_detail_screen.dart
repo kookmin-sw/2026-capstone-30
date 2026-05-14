@@ -7,6 +7,7 @@ import '../models/recipe.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/cooking_guide_sheet.dart';
+import '../widgets/recipe_rating_sheet.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeName;
@@ -168,7 +169,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       );
       final steps = rawSteps.map((s) => CookingStep.fromJson(s)).toList();
       if (!mounted) return;
-      await showCookingGuideSheet(context, steps: steps, recipeName: widget.recipeName);
+      final completed = await showCookingGuideSheet(
+        context,
+        steps: steps,
+        recipeName: widget.recipeName,
+      );
+      if (completed && mounted) {
+        await showRecipeRatingSheet(context, recipeName: widget.recipeName);
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -22,18 +22,19 @@ class CookingStep {
       );
 }
 
-Future<void> showCookingGuideSheet(
+Future<bool> showCookingGuideSheet(
   BuildContext context, {
   required List<CookingStep> steps,
   required String recipeName,
-}) {
-  return showModalBottomSheet(
+}) async {
+  final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     isDismissible: true,
     builder: (_) => CookingGuideSheet(steps: steps, recipeName: recipeName),
   );
+  return result == true;
 }
 
 class CookingGuideSheet extends StatefulWidget {
@@ -355,12 +356,12 @@ class _CookingGuideSheetState extends State<CookingGuideSheet>
           width: double.infinity,
           height: 52,
           child: FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: kPrimary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Text('닫기', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text('별점 남기기', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
       );
