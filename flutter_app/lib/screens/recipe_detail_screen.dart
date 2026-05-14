@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
@@ -159,11 +160,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Widget _buildBody() {
     final d = _detail!;
     final missing = widget.missingIngredients;
+    final showYoutube = _isLoadingVideos || _resolvedLinks.isNotEmpty || d.youtubeLinks.isNotEmpty;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showYoutube) ...[
+            _YoutubePlayerSection(
+              links: _resolvedLinks.isNotEmpty ? _resolvedLinks : d.youtubeLinks,
+              isLoading: _isLoadingVideos,
+            ),
+            const SizedBox(height: 16),
+          ],
           _SectionCard(
             icon: Icons.shopping_basket_outlined,
             title: '재료',
@@ -213,10 +222,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ],
               ),
             ),
-          ],
-          if (d.youtubeLinks.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _YoutubeSection(links: d.youtubeLinks),
           ],
           const SizedBox(height: 32),
         ],
@@ -496,18 +501,76 @@ void _showSubstituteDialog(BuildContext context, String original, Map<String, dy
   );
 }
 
-// 유튜브 링크 섹션
-class _YoutubeSection extends StatelessWidget {
+// 유튜브 인앱 플레이어 섹션
+class _YoutubePlayerSection extends StatefulWidget {
   final List<YoutubeLink> links;
-  const _YoutubeSection({required this.links});
+  final bool isLoading;
 
-  Future<void> _open(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('유튜브를 열 수 없습니다.')),
+  const _YoutubePlayerSection({required this.links, required this.isLoading});
+
+  @override
+  State<_YoutubePlayerSection> createState() => _YoutubePlayerSectionState();
+}
+
+class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
+  YoutubePlayerController? _controller;
+  int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initController();
+  }
+
+  @override
+  void didUpdateWidget(_YoutubePlayerSection old) {
+    super.didUpdateWidget(old);
+    if (old.links != widget.links) {
+      _controller?.dispose();
+      _controller = null;
+      _selectedIndex = 0;
+      _initController();
+    }
+  }
+
+  void _initController() {
+    final id = _firstValidId();
+    if (id != null) {
+      setState(() {
+        _controller = YoutubePlayerController(
+          initialVideoId: id,
+          flags: const YoutubePlayerFlags(autoPlay: false),
         );
+      });
+    }
+  }
+
+  String? _firstValidId() {
+    for (final link in widget.links) {
+      if (link.videoId != null) return link.videoId;
+    }
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _selectVideo(int index) async {
+    final link = widget.links[index];
+    setState(() => _selectedIndex = index);
+    if (link.videoId != null && _controller != null) {
+      _controller!.load(link.videoId!);
+    } else if (link.videoId == null) {
+      final uri = Uri.parse(link.url);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('유튜브를 열 수 없습니다.')),
+          );
+        }
       }
     }
   }
@@ -515,7 +578,6 @@ class _YoutubeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -524,68 +586,97 @@ class _YoutubeSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.play_circle_outline, color: Color(0xFFFF0000)),
-              SizedBox(width: 8),
-              Text('관련 요리 영상', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              SizedBox(width: 6),
-              Text('인기순', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                Icon(Icons.play_circle_outline, color: Color(0xFFFF0000)),
+                SizedBox(width: 8),
+                Text('관련 요리 영상', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
-          const Divider(height: 20),
-          ...links.asMap().entries.map((e) => _YoutubeItem(
-                index: e.key + 1,
-                link: e.value,
-                onTap: () => _open(context, e.value.url),
-              )),
-        ],
-      ),
-    );
-  }
-}
-
-class _YoutubeItem extends StatelessWidget {
-  final int index;
-  final YoutubeLink link;
-  final VoidCallback onTap;
-  const _YoutubeItem({required this.index, required this.link, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            // 순위 뱃지
+          if (widget.isLoading)
             Container(
-              width: 28, height: 28,
+              height: 200,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: index == 1
-                    ? const Color(0xFFFF0000)
-                    : index == 2
-                        ? const Color(0xFFFF5252)
-                        : const Color(0xFFFF8A80),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                child: Text('$index',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          else if (_controller != null)
+            YoutubePlayerBuilder(
+              player: YoutubePlayer(
+                controller: _controller!,
+                showVideoProgressIndicator: true,
+                progressIndicatorColor: const Color(0xFFFF0000),
+              ),
+              builder: (context, player) => player,
+            )
+          else
+            Container(
+              height: 160,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text('영상을 불러올 수 없습니다.', style: TextStyle(color: Colors.grey)),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                link.title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          if (!widget.isLoading && widget.links.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: widget.links.asMap().entries.map((e) {
+                  final isSelected = e.key == _selectedIndex;
+                  final hasId = e.value.videoId != null;
+                  return GestureDetector(
+                    onTap: () => _selectVideo(e.key),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFFFEBEE) : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFFFF0000) : Colors.grey[200]!,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? Icons.play_circle : Icons.play_circle_outline,
+                            color: isSelected ? const Color(0xFFFF0000) : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              e.value.title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color: isSelected ? const Color(0xFFFF0000) : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          if (!hasId)
+                            const Icon(Icons.open_in_new, size: 14, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-            const Icon(Icons.open_in_new, size: 16, color: Colors.grey),
-          ],
-        ),
+          ] else
+            const SizedBox(height: 16),
+        ],
       ),
     );
   }
