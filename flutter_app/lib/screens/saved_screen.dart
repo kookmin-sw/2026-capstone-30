@@ -5,7 +5,8 @@ import '../services/storage_service.dart';
 import 'saved_recipe_detail_screen.dart';
 
 class SavedScreen extends StatefulWidget {
-  const SavedScreen({super.key});
+  final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
+  const SavedScreen({super.key, this.onAddToShopping});
 
   @override
   State<SavedScreen> createState() => SavedScreenState();
@@ -145,7 +146,10 @@ class SavedScreenState extends State<SavedScreen> {
                           ),
                           onTap: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => SavedRecipeDetailScreen(recipe: r)),
+                            MaterialPageRoute(builder: (_) => SavedRecipeDetailScreen(
+                              recipe: r,
+                              onAddToShopping: widget.onAddToShopping,
+                            )),
                           ),
                         ),
                       );

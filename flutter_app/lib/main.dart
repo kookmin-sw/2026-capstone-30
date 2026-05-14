@@ -276,7 +276,7 @@ class _MainNavigatorState extends State<MainNavigator> {
                 loggedIn: _loggedIn,
                 onAddToShopping: (ings, name) => _shoppingKey.currentState?.addItems(ings, name),
               ),
-              SavedScreen(key: _savedKey),
+              SavedScreen(key: _savedKey, onAddToShopping: (ings, name) => _shoppingKey.currentState?.addItems(ings, name)),
               ShoppingScreen(key: _shoppingKey),
               ProfileScreen(
                 loggedIn: _loggedIn,
