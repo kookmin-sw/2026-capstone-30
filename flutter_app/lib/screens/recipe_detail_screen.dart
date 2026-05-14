@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/cooking_guide_sheet.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeName;
@@ -32,6 +33,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isLoading = true;
   bool _isSaved = false;
   bool _isSaving = false;
+  bool _isLoadingGuide = false;
   final Map<String, Map<String, dynamic>> _substitutes = {};
   List<YoutubeLink> _resolvedLinks = [];
   bool _isLoadingVideos = false;
@@ -157,6 +159,27 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
+  Future<void> _startCooking() async {
+    setState(() => _isLoadingGuide = true);
+    try {
+      final rawSteps = await _api.getRecipeSteps(
+        widget.recipeName,
+        widget.ingredients,
+      );
+      final steps = rawSteps.map((s) => CookingStep.fromJson(s)).toList();
+      if (!mounted) return;
+      await showCookingGuideSheet(context, steps: steps, recipeName: widget.recipeName);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('요리 가이드를 불러오지 못했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingGuide = false);
+    }
+  }
+
   Widget _buildBody() {
     final d = _detail!;
     final missing = widget.missingIngredients;
@@ -196,6 +219,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             title: '조리 방법',
             child: Column(
               children: d.steps.asMap().entries.map((e) => _StepItem(number: e.key + 1, text: e.value)).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: _isLoadingGuide ? null : _startCooking,
+              icon: _isLoadingGuide
+                  ? const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.play_arrow_rounded),
+              label: Text(_isLoadingGuide ? '가이드 준비 중...' : '요리 시작하기'),
+              style: FilledButton.styleFrom(
+                backgroundColor: kPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           if (d.tips.isNotEmpty) ...[
