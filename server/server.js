@@ -747,6 +747,52 @@ app.post('/api/notifications/test', async (req, res) => {
   }
 });
 
+// ── 챗봇 API ──────────────────────────────────────────────────
+app.post('/api/chat', async (req, res) => {
+  const { messages, userId } = req.body;
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: '메시지가 없습니다.' });
+  }
+
+  try {
+    let ingredientContext = '';
+    if (userId) {
+      try {
+        const [rows] = await pool.query(
+          'SELECT name FROM ingredients WHERE user_id = ?',
+          [userId]
+        );
+        if (rows.length > 0) {
+          ingredientContext = `\n사용자의 현재 냉장고 재료: ${rows.map((r) => r.name).join(', ')}`;
+        }
+      } catch (_) {}
+    }
+
+    const systemMessage = {
+      role: 'system',
+      content: `당신은 '냉집사'입니다. 냉장고 식재료 관리와 요리 레시피를 전문으로 돕는 AI 집사입니다.
+친근하고 전문적인 어투로 답변하고, 답변은 간결하고 실용적으로 작성하세요.
+요리법, 식재료, 영양, 음식 추천 등 음식 관련 질문에 성실히 답변하세요.${ingredientContext}`,
+    };
+
+    const response = await callOpenRouter([systemMessage, ...messages], 3, 1024);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('[POST /api/chat] AI 오류:', errText);
+      return res.status(500).json({ error: 'AI 응답 오류' });
+    }
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content ?? 'AI 응답을 받지 못했습니다.';
+    res.json({ reply });
+  } catch (error) {
+    console.error('[POST /api/chat]', error.message);
+    res.status(500).json({ error: '챗봇 오류가 발생했습니다.' });
+  }
+});
+
 // Multer 에러 핸들러
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message.includes('허용')) {
