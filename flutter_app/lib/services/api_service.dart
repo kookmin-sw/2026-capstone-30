@@ -245,6 +245,40 @@ class ApiService {
         .timeout(_timeout);
   }
 
+  Future<String> sendChat(
+    List<Map<String, dynamic>> messages, {
+    int? userId,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse('$kBaseUrl/api/chat'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'messages': messages,
+            if (userId != null) 'userId': userId,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['reply'] as String;
+    }
+    throw Exception(_errorMsg(res));
+  }
+
+  Future<String> getChatSuggestion() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$kBaseUrl/api/chat/suggest'))
+          .timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body)['suggest'] as String;
+      }
+    } catch (_) {}
+    return '오늘 뭐 먹을까? 추천받기';
+  }
+
   String _errorMsg(http.Response res) {
     try {
       return jsonDecode(res.body)['error'] ?? '서버 오류 (${res.statusCode})';
