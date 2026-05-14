@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/chatbot_sheet.dart';
 import 'recipe_detail_screen.dart';
 
 // 서버 server.js의 분류 사전과 같이 유지
@@ -538,6 +539,12 @@ class HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showChatbotSheet(context, userId: _userId),
+        backgroundColor: kPrimary,
+        icon: const Icon(Icons.chat_rounded, color: Colors.white),
+        label: const Text('AI 집사', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
