@@ -338,6 +338,10 @@ class HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _removeImage(int index) {
+    setState(() => _images.removeAt(index));
+  }
+
   void _removeIngredient(Map<String, dynamic> item) async {
     final id = item['ingredient_id'];
     if (widget.loggedIn && id != null) {
@@ -457,6 +461,7 @@ class HomeScreenState extends State<HomeScreen> {
                   images: _images,
                   isAnalyzing: _isAnalyzing,
                   onTap: _showSourceSheet,
+                  onRemove: _removeImage,
                 ),
                 const SizedBox(height: 12),
                 _CatBubble(message: _catMessage),
@@ -603,9 +608,11 @@ class _ImageUploadCard extends StatelessWidget {
   final List<File> images;
   final bool isAnalyzing;
   final VoidCallback onTap;
+  final void Function(int index) onRemove;
 
   const _ImageUploadCard({
-    required this.images, required this.isAnalyzing, required this.onTap,
+    required this.images, required this.isAnalyzing,
+    required this.onTap, required this.onRemove,
   });
 
   @override
@@ -645,6 +652,7 @@ class _ImageUploadCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Stack(
+          fit: StackFit.expand,
           children: [
             ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -673,12 +681,33 @@ class _ImageUploadCard extends StatelessWidget {
                     ),
                   );
                 }
-                return Container(
-                  width: 160,
-                  margin: EdgeInsets.only(left: index == 0 ? 0 : 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(images[index], fit: BoxFit.cover),
+                return Padding(
+                  padding: EdgeInsets.only(right: 8, left: index == 0 ? 0 : 0),
+                  child: SizedBox(
+                    width: 160,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(images[index], fit: BoxFit.cover, width: 160, height: double.infinity),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () => onRemove(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
