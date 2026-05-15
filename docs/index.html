@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>냉집사 — AI 식재료 인식 & 레시피 추천 앱</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== 네비게이션 ===== -->
+  <header id="navbar">
+    <nav>
+      <a class="logo" href="#hero">냉집사</a>
+      <ul>
+        <li><a href="#about">소개</a></li>
+        <li><a href="#problem">문제 정의</a></li>
+        <li><a href="#features">기능</a></li>
+        <li><a href="#flow">사용 흐름</a></li>
+        <li><a href="#stack">기술 스택</a></li>
+        <li><a href="#team">팀원</a></li>
+        <li><a href="https://github.com/kookmin-sw/2026-capstone-30" target="_blank" class="btn-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section id="hero">
+    <div class="hero-inner">
+      <p class="hero-tag">AI 기반 냉장고 관리 앱</p>
+      <h1>냉집사</h1>
+      <p class="hero-sub">냉장고 사진 한 장으로<br/>지금 바로 만들 수 있는 레시피를 추천해 드립니다.</p>
+      <div class="hero-btns">
+        <a href="#features" class="btn-primary">기능 살펴보기</a>
+        <a href="https://github.com/kookmin-sw/2026-capstone-30" target="_blank" class="btn-outline">GitHub 바로가기</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ABOUT ===== -->
+  <section id="about">
+    <div class="container">
+      <h2 class="section-title">프로젝트 소개</h2>
+      <p class="section-desc">이제 냉장고는 <strong>'정리하는'</strong> 것이 아니라 <strong>'활용하는'</strong> 것입니다</p>
+
+      <div class="about-cards">
+        <div class="about-card">
+          <img src="https://img.icons8.com/ios/60/2A7D52/camera.png" alt="AI 식재료 인식" />
+          <h3>AI 식재료 인식</h3>
+          <p>냉장고 사진 한 장으로 재료를 자동 분석해 목록을 만들어 드립니다</p>
+        </div>
+        <div class="about-card">
+          <img src="https://img.icons8.com/ios/60/2A7D52/chef-hat.png" alt="맞춤 레시피 추천" />
+          <h3>맞춤 레시피 추천</h3>
+          <p>보유 재료 기반으로 지금 바로 만들 수 있는 레시피를 매칭합니다</p>
+        </div>
+        <div class="about-card">
+          <img src="https://img.icons8.com/ios/60/2A7D52/chat.png" alt="AI 챗봇" />
+          <h3>AI 챗봇</h3>
+          <p>레시피 관련 궁금한 점을 AI에게 바로 물어보고 맞춤 답변을 받아보세요</p>
+        </div>
+        <div class="about-card">
+          <img src="https://img.icons8.com/ios/60/2A7D52/youtube-play.png" alt="유튜브 영상 연동" />
+          <h3>유튜브 영상 연동</h3>
+          <p>레시피에 맞는 신뢰도 높은 요리 영상을 바로 연결해 드립니다</p>
+        </div>
+        <div class="about-card">
+          <img src="https://img.icons8.com/ios/60/2A7D52/shopping-cart.png" alt="쇼핑 연동" />
+          <h3>부족 재료 쇼핑 연동</h3>
+          <p>레시피에 부족한 재료를 즉시 구매할 수 있는 쇼핑 링크를 제공합니다</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROBLEM ===== -->
+  <section id="problem">
+    <div class="container">
+      <h2 class="section-title">문제 정의</h2>
+      <p class="section-desc">요리를 하고 싶어도 막히는 현실적인 장벽들</p>
+
+      <div class="problem-grid">
+        <div class="problem-card">
+          <span class="problem-icon">📈</span>
+          <h3>홈쿡 수요 증가</h3>
+          <p>외식 물가 상승과 요리 예능 트렌드로 직접 요리하려는 수요가 늘고 있지만, 실제 실천으로 이어지는 데 어려움이 있습니다.</p>
+        </div>
+        <div class="problem-card">
+          <span class="problem-icon">❓</span>
+          <h3>재료 활용 막막함</h3>
+          <p>요리 초보자는 냉장고에 쌓인 식재료를 어떻게 써야 할지 몰라 매번 새 재료를 사거나 배달 음식에 의존하는 악순환을 겪습니다.</p>
+        </div>
+        <div class="problem-card">
+          <span class="problem-icon">🔄</span>
+          <h3>중복 구매 & 배달 의존</h3>
+          <p>있는 재료를 인지하지 못해 필요 없는 재료를 또 구매하거나, 요리 대신 배달에 반복적으로 의존하게 됩니다.</p>
+        </div>
+        <div class="problem-card">
+          <span class="problem-icon">⏱️</span>
+          <h3>레시피 탐색 비용</h3>
+          <p>지금 가진 재료로 만들 수 있는 요리를 찾기 위해 여러 앱·사이트를 번갈아 검색해야 하는 번거로움이 존재합니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-title">주요 기능</h2>
+      <p class="section-desc">냉집사가 제공하는 6가지 스마트 기능</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-num">01</span>
+          <h3>📸 식재료 인식 & 관리</h3>
+          <p>카메라 촬영 또는 사진 업로드 시 AI가 식재료를 자동 추출합니다. 수동 편집(추가/수정/삭제)도 지원합니다.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">02</span>
+          <h3>🍳 맞춤 레시피 추천</h3>
+          <p>인식된 재료 기반으로 즉시 조리 가능한 최적 레시피를 매칭하고, 유튜브 링크로 요리 영상을 함께 제공합니다.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">03</span>
+          <h3>🤖 AI 챗봇</h3>
+          <p>레시피나 요리 방법이 궁금할 때 AI에게 바로 질문하고 맞춤 답변을 받을 수 있습니다.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">04</span>
+          <h3>🛒 부족 재료 쇼핑 연동</h3>
+          <p>선택한 레시피에 필요한 부족 재료를 파악해 즉시 구매 링크를 제공합니다. 요리 계획부터 장보기까지 한 번에 해결합니다.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">05</span>
+          <h3>🔔 유통기한 임박 알림</h3>
+          <p>냉장고에 등록된 식재료 중 유통기한이 얼마 남지 않은 재료를 감지해 소비 전에 미리 알림을 보내드립니다.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-num">06</span>
+          <h3>👤 맞춤 프로필 설정</h3>
+          <p>알레르기 유발 식품 제외, 비건 등 식이 제한, 선호 요리 종류를 설정하여 나만의 맞춤형 레시피를 받을 수 있습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== USER FLOW ===== -->
+  <section id="flow">
+    <div class="container">
+      <h2 class="section-title">사용 흐름</h2>
+      <p class="section-desc">냉집사 사용 6단계</p>
+
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-circle">1</div>
+          <h3>사진 촬영</h3>
+          <p>냉장고 사진을 찍거나 갤러리에서 업로드</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-circle">2</div>
+          <h3>AI 식재료 인식</h3>
+          <p>Google Gemini API가 이미지를 분석해 재료 자동 추출</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-circle">3</div>
+          <h3>재료 확인 & 편집</h3>
+          <p>인식된 재료 목록을 확인하고 필요 시 수정</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-circle">4</div>
+          <h3>레시피 추천</h3>
+          <p>보유 재료로 만들 수 있는 레시피 목록 확인</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-circle">5</div>
+          <h3>영상 & 쇼핑 연동</h3>
+          <p>유튜브 요리 영상 시청 및 부족 재료 바로 구매</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-circle">6</div>
+          <h3>레시피 저장</h3>
+          <p>마음에 드는 레시피를 저장하여 나중에 다시 확인</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TECH STACK ===== -->
+  <section id="stack">
+    <div class="container">
+      <h2 class="section-title">기술 스택</h2>
+
+      <div class="stack-grid">
+        <div class="stack-group">
+          <h3>Frontend</h3>
+          <div class="badges">
+            <span class="badge">Flutter</span>
+            <span class="badge">Dart</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <h3>Backend</h3>
+          <div class="badges">
+            <span class="badge">Node.js</span>
+            <span class="badge">Express</span>
+            <span class="badge">REST API</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <h3>Database</h3>
+          <div class="badges">
+            <span class="badge">MySQL</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <h3>AI / API</h3>
+          <div class="badges">
+            <span class="badge">Google Gemini API</span>
+            <span class="badge">YouTube API</span>
+            <span class="badge">쇼핑 API</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <h3>Infrastructure</h3>
+          <div class="badges">
+            <span class="badge">FCM</span>
+            <span class="badge">Firebase</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <h3>협업 도구</h3>
+          <div class="badges">
+            <span class="badge">Git</span>
+            <span class="badge">Notion</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TEAM ===== -->
+  <section id="team">
+    <div class="container">
+      <h2 class="section-title">팀원 소개</h2>
+      <p class="section-desc">굿파트너 팀 — 국민대학교 소프트웨어융합대학</p>
+
+      <div class="team-cards">
+        <div class="team-card">
+          <div class="team-avatar">임</div>
+          <h3>임수민 <span class="role-tag">조장</span></h3>
+          <p class="role">Back-End</p>
+          <p class="role-detail">레시피 매칭 엔진, MySQL 데이터베이스 설계, FCM 푸시 알림 서버 구축</p>
+        </div>
+        <div class="team-card">
+          <div class="team-avatar">이</div>
+          <h3>이지우</h3>
+          <p class="role">Front-End / AI</p>
+          <p class="role-detail">Flutter 기반 크로스 플랫폼 앱 UI/UX 구현 및 Google Gemini API 연동</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer>
+    <div class="container">
+      <p class="footer-logo">냉집사</p>
+      <div class="footer-links">
+        <a href="https://github.com/kookmin-sw/2026-capstone-30" target="_blank">GitHub</a>
+        <a href="https://www.notion.so/3364608f68978062affde98e98c3aedd" target="_blank">Notion</a>
+      </div>
+      <p class="footer-copy">© 2026 굿파트너 팀 (국민대학교 소프트웨어융합대학). 비상업적, 교육 및 연구 목적으로만 사용 허가.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
