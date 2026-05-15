@@ -714,6 +714,88 @@ async function broadcastNotification(title, body, screen = 'home') {
   return { sent: result.successCount, failed: result.failureCount, cleaned: toClean.length };
 }
 
+// 카테고리별 보관일수 (home_screen.dart의 _shelfLifeDays와 동기화 무조건)
+const SHELF_LIFE_DAYS = {
+  '고기': 3,
+  '해산물': 2,
+  '유제품': 7,
+  '채소': 5,
+  '과일': 5,
+};
+
+// 같은 날 0시 기준 일수 차이 (홈 배너 _daysSince랑 같은거임)
+function daysSince(createdAt) {
+  const now = new Date();
+  const c = new Date(createdAt);
+  const t0 = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const c0 = Date.UTC(c.getFullYear(), c.getMonth(), c.getDate());
+  return Math.floor((t0 - c0) / 86400000);
+}
+
+// 만료 1일 전부터 (홈 배너 _isStale랑 같은거)
+function isStale(category, createdAt) {
+  const days = SHELF_LIFE_DAYS[category];
+  if (days == null) return false;
+  if (!createdAt) return false;
+  return daysSince(createdAt) >= days - 1;
+}
+
+// 사용자별 오래된 식재료 알림 (무효 토큰 자동 정리)
+async function sendStaleNotifications() {
+  const [users] = await db.query(
+    'SELECT user_id, fcm_token FROM users WHERE fcm_token IS NOT NULL'
+  );
+  if (!users.length) return { targeted: 0, sent: 0, failed: 0, cleaned: 0 };
+
+  const invalidCodes = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token',
+  ]);
+  const toClean = [];
+  let sent = 0, failed = 0, withStale = 0;
+
+  for (const u of users) {
+    const [items] = await db.query(
+      'SELECT name, category, created_at FROM ingredients WHERE user_id = ?',
+      [u.user_id]
+    );
+    const stale = items
+      .filter((it) => isStale(it.category, it.created_at))
+      .map((it) => it.name);
+    if (!stale.length) continue;
+    withStale++;
+
+    // 배너와 동일한 문구 (home_screen.dart _StaleBanner._text)
+    const body = stale.length <= 3
+      ? `오래된 재료가 있어요! ${stale.join(', ')}`
+      : `오래된 재료가 있어요! ${stale.slice(0, 2).join(', ')} 등 ${stale.length}개`;
+
+    try {
+      await admin.messaging().send({
+        token: u.fcm_token,
+        notification: { title: '냉집사', body },
+        data: { screen: 'home' },
+      });
+      sent++;
+    } catch (err) {
+      failed++;
+      if (invalidCodes.has(err.code)) toClean.push(u.user_id);
+    }
+  }
+
+  if (toClean.length) {
+    await db.query(
+      `UPDATE users SET fcm_token = NULL WHERE user_id IN (${toClean.map(() => '?').join(',')})`,
+      toClean
+    );
+  }
+
+  const ts = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  console.log(`[stale 알림 ${ts}] 대상: ${users.length}, 오래된 재료 보유: ${withStale}, 발송: ${sent}, 실패: ${failed}, 토큰 정리: ${toClean.length}건`);
+
+  return { targeted: users.length, withStale, sent, failed, cleaned: toClean.length };
+}
+
 app.post('/api/notifications/send-all', async (req, res) => {
   if (!admin.apps.length) {
     return res.status(503).json({ error: 'Firebase Admin 미초기화' });
@@ -938,12 +1020,20 @@ async function generateTrendingMessage() {
 }
 
 // ── 자동 알림 스케줄러 (2시간마다) ──────────────────────────────
+// 18시: 사용자별 오래된 재료 알림. 그 외 짝수 정각: 기존 트렌드 알림.
+const STALE_NOTIFICATION_HOUR = 18;
+
 async function sendScheduledNotification() {
   if (!admin.apps.length) return;
   try {
-    const aiMessage = await generateTrendingMessage();
-    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
-    await broadcastNotification('냉집사', body, 'home');
+    const hour = new Date().getHours();
+    if (hour === STALE_NOTIFICATION_HOUR) {
+      await sendStaleNotifications();
+    } else {
+      const aiMessage = await generateTrendingMessage();
+      const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
+      await broadcastNotification('냉집사', body, 'home');
+    }
   } catch (error) {
     console.error('[스케줄러] 알림 발송 실패:', error.message);
   }
