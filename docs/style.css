@@ -65,6 +65,13 @@ a { text-decoration: none; color: inherit; }
 
 #navbar ul a:hover { color: var(--primary); }
 
+#navbar ul a.nav-active {
+  color: var(--primary);
+  font-weight: 700;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 2px;
+}
+
 .btn-github {
   padding: 6px 16px;
   border: 1.5px solid var(--primary);
@@ -208,6 +215,20 @@ section:nth-child(even) { background: var(--light); }
   font-weight: 800;
   text-align: center;
   margin-bottom: 12px;
+  position: relative;
+  display: inline-block;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 2px;
+  margin: 10px auto 0;
 }
 
 .section-desc {
@@ -233,9 +254,14 @@ section:nth-child(even) { background: var(--light); }
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.about-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.about-card:hover { transform: translateY(-6px); box-shadow: 0 12px 36px rgba(42,125,82,0.15); }
 
-.about-card img { margin-bottom: 16px; }
+.about-card img {
+  margin-bottom: 16px;
+  transition: transform 0.3s ease;
+}
+
+.about-card:hover img { transform: scale(1.12); }
 
 .about-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
 
@@ -274,7 +300,12 @@ section:nth-child(even) { background: var(--light); }
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.feature-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 36px rgba(42,125,82,0.15);
+  border-left: 4px solid var(--primary);
+  padding-left: 20px;
+}
 
 .feature-num {
   font-size: 0.75rem;
@@ -315,6 +346,12 @@ section:nth-child(even) { background: var(--light); }
   align-items: center;
   justify-content: center;
   margin: 0 auto 12px;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.flow-step:hover .flow-circle {
+  transform: scale(1.15);
+  box-shadow: 0 6px 20px rgba(42,125,82,0.4);
 }
 
 .flow-step h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
