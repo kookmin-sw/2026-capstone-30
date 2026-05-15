@@ -53,7 +53,7 @@ class _RecipeRatingSheetState extends State<RecipeRatingSheet>
   Future<void> _submit() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('별점을 선택해주세요.')),
+        const SnackBar(content: Text('별점을 선택해 주세요.')),
       );
       return;
     }
@@ -144,7 +144,7 @@ class _RecipeRatingSheetState extends State<RecipeRatingSheet>
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 150),
             child: Text(
-              active > 0 ? _labels[active] : '별점을 선택해주세요',
+              active > 0 ? _labels[active] : '별점을 선택해 주세요',
               key: ValueKey(active),
               style: TextStyle(
                 fontSize: 14,

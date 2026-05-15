@@ -180,7 +180,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('요리 가이드를 불러오지 못했습니다. 다시 시도해주세요.')),
+          const SnackBar(content: Text('요리 가이드를 불러오지 못했습니다. 다시 시도해 주세요.')),
         );
       }
     } finally {

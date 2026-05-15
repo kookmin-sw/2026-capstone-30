@@ -71,7 +71,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
   Future<void> _toggleListening() async {
     if (!_speechAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('음성인식을 사용할 수 없습니다.')),
+        const SnackBar(content: Text('음성 인식을 사용할 수 없습니다.')),
       );
       return;
     }
@@ -142,7 +142,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _messages.add(_ChatMessage(content: '오류가 발생했어요. 다시 시도해주세요.', isUser: false));
+          _messages.add(_ChatMessage(content: '오류가 발생했어요. 다시 시도해 주세요.', isUser: false));
           _isLoading = false;
         });
       }
@@ -229,7 +229,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
             Icon(Icons.chat_bubble_outline, size: 52, color: Colors.grey[300]),
             const SizedBox(height: 14),
             Text(
-              '아래 문구를 수정하거나 바로 전송해보세요',
+              '아래 문구를 수정하거나 바로 전송해 보세요',
               style: TextStyle(color: Colors.grey[400], fontSize: 14),
             ),
           ],
@@ -312,7 +312,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
         Navigator.pop(context); // 로딩 닫기
         showDialog(
           context: context,
-          builder: (_) => _ResultDialog(success: false, message: '저장에 실패했어요.\n다시 시도해주세요.'),
+          builder: (_) => _ResultDialog(success: false, message: '저장에 실패했어요.\n다시 시도해 주세요.'),
         );
       }
     }

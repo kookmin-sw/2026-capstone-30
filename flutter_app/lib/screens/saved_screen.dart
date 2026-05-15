@@ -180,7 +180,7 @@ class _EmptyState extends StatelessWidget {
             ),
             if (!hasSearch) ...[
               const SizedBox(height: 8),
-              Text('홈에서 레시피를 저장해보세요!',
+              Text('홈에서 레시피를 저장해 보세요!',
                   style: TextStyle(color: Colors.grey[400], fontSize: 13)),
             ],
           ],

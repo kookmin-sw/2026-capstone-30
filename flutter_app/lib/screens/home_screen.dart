@@ -167,9 +167,9 @@ class HomeScreenState extends State<HomeScreen> {
     if (_isAnalyzing) return '재료를 열심히 분석하고 있어요! 잠깐만요';
     if (_isLoadingRecipes) return '어떤 레시피가 맛있을지 생각 중이에요...';
     if (_recipes.isNotEmpty) return '맛있는 레시피를 찾았어요!\n골라서 요리해 보세요';
-    if (_ingredients.isNotEmpty) return '재료 확인 완료!\n버튼을 눌러 레시피를 추천받아보세요';
+    if (_ingredients.isNotEmpty) return '재료 확인 완료!\n버튼을 눌러 레시피를 추천받아 보세요';
     if (_images.isNotEmpty) return '사진 업로드 완료!\n재료를 분석했어요';
-    return '냉장고 사진을 찍어주세요!\n제가 레시피를 추천해드릴게요';
+    return '냉장고 사진을 찍어 주세요!\n제가 레시피를 추천해 드릴게요';
   }
 
   void _showSourceSheet() {
@@ -316,7 +316,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _getRecipes() async {
     if (_ingredients.isEmpty) {
-      _showError('재료를 먼저 추가해주세요.');
+      _showError('재료를 먼저 추가해 주세요.');
       return;
     }
     setState(() => _isLoadingRecipes = true);
@@ -820,7 +820,7 @@ class _IngredientsCard extends StatelessWidget {
                     Icon(Icons.kitchen_outlined, size: 56, color: Colors.grey[300]),
                     const SizedBox(height: 8),
                     Text(
-                      '냉장고가 비어있어요!',
+                      '냉장고가 비어 있어요!',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,

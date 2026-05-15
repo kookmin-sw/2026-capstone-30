@@ -111,7 +111,7 @@ class ShoppingScreenState extends State<ShoppingScreen> {
           Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            '쇼핑 목록이 비어있어요',
+            '쇼핑 목록이 비어 있어요',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey[500],
