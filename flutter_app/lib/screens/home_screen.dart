@@ -352,6 +352,31 @@ class HomeScreenState extends State<HomeScreen> {
     if (!widget.loggedIn) await _persistLocal();
   }
 
+  Future<void> _confirmClearIngredients() async {
+    if (_ingredients.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('냉장고를 청소할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('아니')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('응')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    if (widget.loggedIn && _userId != null) {
+      try { await _api.clearIngredients(_userId!); } catch (_) {}
+    }
+    setState(() => _ingredients.clear());
+    if (!widget.loggedIn) await _persistLocal();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('냉장고를 깨끗하게 비웠어요')),
+    );
+  }
+
   void _showAddDialog() {
     final ctrl = TextEditingController();
     showDialog(
@@ -478,6 +503,7 @@ class HomeScreenState extends State<HomeScreen> {
                   isAnalyzing: _isAnalyzing,
                   onRemove: _removeIngredient,
                   onAdd: _showAddDialog,
+                  onClear: _confirmClearIngredients,
                 ),
 
                 if (_ingredients.isNotEmpty && !_isAnalyzing) ...[
@@ -745,10 +771,11 @@ class _IngredientsCard extends StatelessWidget {
   final bool isAnalyzing;
   final void Function(Map<String, dynamic>) onRemove;
   final VoidCallback onAdd;
+  final VoidCallback onClear;
 
   const _IngredientsCard({
     required this.ingredients, required this.isAnalyzing,
-    required this.onRemove, required this.onAdd,
+    required this.onRemove, required this.onAdd, required this.onClear,
   });
 
   Map<String, List<Map<String, dynamic>>> _grouped() {
@@ -795,6 +822,13 @@ class _IngredientsCard extends StatelessWidget {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
+            // 재료가 있을 때만 청소 버튼 노출
+            if (!isEmpty && !isAnalyzing)
+              IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.cleaning_services_outlined, color: kPrimary),
+                tooltip: '냉장고 청소',
+              ),
             IconButton(
               onPressed: onAdd,
               icon: const Icon(Icons.add_circle_outline, color: kPrimary),

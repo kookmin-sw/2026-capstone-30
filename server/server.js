@@ -626,6 +626,20 @@ app.delete('/api/ingredients/:ingredientId', async (req, res) => {
   }
 });
 
+// 사용자 냉장고 전체 비우기
+app.delete('/api/ingredients/user/:userId', async (req, res) => {
+  try {
+    const [result] = await db.query(
+      'DELETE FROM ingredients WHERE user_id = ?',
+      [req.params.userId]
+    );
+    res.json({ deleted: result.affectedRows });
+  } catch (error) {
+    console.error('[/api/ingredients/user DELETE]', error.message);
+    res.status(500).json({ error: '냉장고 비우기 실패' });
+  }
+});
+
 // FCM 토큰 저장
 app.post('/api/fcm-token', async (req, res) => {
   try {

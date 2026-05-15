@@ -200,6 +200,14 @@ class ApiService {
     if (res.statusCode != 200) throw Exception(_errorMsg(res));
   }
 
+  Future<void> clearIngredients(int userId) async {
+    final res = await http
+        .delete(Uri.parse('$kBaseUrl/api/ingredients/user/$userId'))
+        .timeout(_timeout);
+
+    if (res.statusCode != 200) throw Exception(_errorMsg(res));
+  }
+
   Future<Map<String, dynamic>> getSubstitute(
     int userId,
     String missingIngredient,
