@@ -13,7 +13,10 @@
   --radius: 12px;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 70px;
+}
 
 body {
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -175,7 +178,7 @@ a { text-decoration: none; color: inherit; }
 .hero-btns {
   display: flex;
   gap: 14px;
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 
@@ -297,14 +300,14 @@ section:nth-child(even) { background: var(--light); }
   padding: 28px 24px;
   position: relative;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  border-left: 4px solid transparent;
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 36px rgba(42,125,82,0.15);
-  border-left: 4px solid var(--primary);
-  padding-left: 20px;
+  border-left-color: var(--primary);
 }
 
 .feature-num {
