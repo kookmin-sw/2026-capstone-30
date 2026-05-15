@@ -576,7 +576,9 @@ class _CatBubble extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        const Text('🐱', style: TextStyle(fontSize: 36)),
+        ClipOval(
+          child: Image.asset('assets/cat3.png', width: 80, height: 80, fit: BoxFit.cover),
+        ),
       ],
     );
   }
