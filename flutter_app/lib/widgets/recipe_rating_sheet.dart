@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
 
-Future<void> showRecipeRatingSheet(
+Future<int?> showRecipeRatingSheet(
   BuildContext context, {
   required String recipeName,
 }) {
-  return showModalBottomSheet(
+  return showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -60,7 +60,7 @@ class _RecipeRatingSheetState extends State<RecipeRatingSheet>
     setState(() => _submitted = true);
     await _checkCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context, _rating);
   }
 
   @override

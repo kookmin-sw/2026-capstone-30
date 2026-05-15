@@ -175,7 +175,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         recipeName: widget.recipeName,
       );
       if (completed && mounted) {
-        await showRecipeRatingSheet(context, recipeName: widget.recipeName);
+        final rating = await showRecipeRatingSheet(context, recipeName: widget.recipeName);
+        if (rating == 5 && _detail != null && !_isSaved && mounted) {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('만족하셨나요?'),
+              content: const Text('다음에 또 만나보실 수 있도록\n레시피에 저장해드릴까요?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('괜찮아')),
+                FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('좋아')),
+              ],
+            ),
+          );
+          if (ok == true && mounted) {
+            await _storage.saveRecipe(_detail!);
+            if (mounted) setState(() => _isSaved = true);
+          }
+        }
       }
     } catch (_) {
       if (mounted) {
