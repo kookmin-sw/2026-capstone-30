@@ -3,9 +3,11 @@
 <br/><br/>
 
 <p align="center">
-  <a href="https://captain-lim.github.io/capstone_project_team30/#about">
-    <img src="assets/preview.png" alt="냉집사 앱 미리보기" width="80%"/>
-  </a>
+  <img src="docs/assets/poster.jpg" width="80%"/>
+</p>
+
+<p align="center">
+  <a href="https://captain-lim.github.io/capstone_project_team30/#about">냉집사 사이트 방문하기</a>
 </p>
 
 <br/><br/>
@@ -53,7 +55,7 @@
     <td align="center" width="25%">
       <img src="https://img.icons8.com/ios/60/FF6B35/camera.png"/><br/><br/>
       <b>AI 식재료 인식</b><br/>
-      <sub>카메라 한 장으로<br/>냉장고 재료를 자동 분석</sub>
+      <sub>촬영 한 번으로<br/>냉장고 재료를 자동 분석</sub>
     </td>
     <td align="center" width="25%">
       <img src="https://img.icons8.com/ios/60/FF6B35/chef-hat.png"/><br/><br/>
@@ -79,13 +81,13 @@
 
 ### 추진 배경 및 필요성
 
-현대 사회에서 1인 가구 및 맞벌이 가구의 증가로 인해 집에서 요리하는 빈도가 불규칙해지면서, 냉장고에 방치된 식재료가 유통기한을 넘겨 음식물 쓰레기로 발생하는 일이 지속적으로 나타나고 있다. 이는 개인의 경제적 손실로도, 환경 오염을 유발하는 것에 있어서도 개선이 필요한 문제로 인식되고 있다.
+현대 사회에서 1인 가구 및 맞벌이 가구의 증가로 인해 집에서 요리하는 빈도가 불규칙해지면서, 냉장고에 방치된 식재료가 유통기한을 넘겨 음식물 쓰레기로 발생하는 일이 지속적으로 나타나고 있습니다. 이는 개인의 경제적 손실로도, 환경 오염 측면에서도 개선이 필요한 문제로 인식되고 있습니다.
 
-연구에 따르면 음식물 쓰레기의 상당량이 최종 유통 및 가정 내 소비 단계에서 발생하며, 특히 가정 부문에서의 발생 비중이 높은 것으로 보고된다. 이에 따라 가정 내 음식물 쓰레기 저감을 위한 체계적인 관리 방안이 필요하다.
+연구에 따르면 음식물 쓰레기의 상당량이 최종 유통 및 가정 내 소비 단계에서 발생하며, 특히 가정 부문에서의 발생 비중이 높은 것으로 보고됩니다. 이에 따라 가정 내 음식물 쓰레기 저감을 위한 체계적인 관리 방안이 필요합니다.
 
-또한, 최근 급격한 외식 물가 상승, 요리 예능 등으로 인해 직접 요리를 해 먹으려는 '홈 쿡' 수요가 늘어나고 있으나, 요리에 익숙하지 않은 초보자들은 한번 요리에 사용하고 남은 재료, 혹은 냉장고에 쌓여가는 수많은 식재료들을 어떻게 활용해야 할지 몰라 매번 새로운 식재료를 구매하거나 배달 음식에 의존하는 악순환을 겪고 있다.
+또한, 최근 급격한 외식 물가 상승, 요리 예능 등으로 인해 직접 요리를 해 먹으려는 '홈 쿡' 수요가 늘어나고 있으나, 요리에 익숙하지 않은 초보자들은 한번 요리에 사용하고 남은 재료, 혹은 냉장고에 쌓여가는 수많은 식재료들을 어떻게 활용해야 할지 몰라 매번 새로운 식재료를 구매하거나 배달 음식에 의존하는 악순환을 겪고 있습니다.
 
-따라서 사용자가 현재 보유하고 있는 재료의 활용도를 극대화하고, 누구나 쉽고 간편하게 요리에 접근할 수 있도록 돕는 지능형 보조 시스템의 필요성이 매우 높아진 상황이다.
+따라서 사용자가 현재 보유하고 있는 재료의 활용도를 극대화하고, 누구나 쉽고 간편하게 요리에 접근할 수 있도록 돕는 지능형 보조 시스템의 필요성이 매우 높아진 상황입니다.
 
 ---
 
@@ -215,27 +217,40 @@
 
 ---
 
-## 📖 사용법
-
-### 개발 환경 설정
+## 📖 사용법 (환경 설정)
 
 #### 1. 저장소 복제
 
 ```bash
 git clone https://github.com/kookmin-sw/2026-capstone-30
-cd capstone
+cd 2026-capstone-30
 ```
 
-#### 2. API 키 설정
+#### 2. DB 설정
 
-`server/.env` 파일에 OpenRouter API 키를 입력 후에 파일 명을 .env로 수정:
+MySQL에서 데이터베이스를 생성하고 스키마를 적용합니다:
+
+```sql
+CREATE DATABASE naengjibsa CHARACTER SET utf8mb4;
+USE naengjibsa;
+SOURCE server/schema.sql;
+```
+
+이후 `server/db.js`의 접속 정보를 본인 환경에 맞게 수정합니다 (`host`, `user`, `password`).
+
+#### 3. API 키 및 Firebase 설정
+
+`server/.env` 파일을 새로 만들어 아래 내용을 입력:
 
 ```
 OPENROUTER_API_KEY=발급받은_키_입력
 PORT=3000
 ```
 
-#### 3. 서버 실행
+Firebase 콘솔 → 프로젝트 설정 → 서비스 계정에서 비공개 키를 발급받아 `server/firebase-admin-key.json`으로 저장합니다.
+키 파일이 없으면 서버는 정상 실행되지만 푸시 알림은 비활성화됩니다.
+
+#### 4. 서버 실행
 
 ```bash
 cd server
@@ -248,17 +263,17 @@ npm run dev
 서버 실행 중: http://0.0.0.0:3000
 ```
 
-#### 4. Flutter 앱 실행
+#### 5. Flutter 앱 실행
 
 서버를 켜둔 상태에서 새 터미널을 열고:
 
 ```bash
 cd flutter_app
 flutter pub get
-flutter run --release
+flutter run --no-enable-impeller
 ```
 
-> 에뮬레이터에서 디버그 모드(`flutter run`) 실행 시 Impeller 렌더러 충돌이 발생할 수 있습니다. `--release` 옵션을 사용하세요.
+> 에뮬레이터 사용 시 Impeller 렌더러 충돌이 발생할 수 있어 `--no-enable-impeller` 옵션을 권장합니다.
 
 ---
 
