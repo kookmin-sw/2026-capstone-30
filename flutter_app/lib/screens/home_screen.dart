@@ -461,7 +461,7 @@ class HomeScreenState extends State<HomeScreen> {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('재료 추가'),
         content: TextField(
           controller: ctrl,
@@ -470,10 +470,11 @@ class HomeScreenState extends State<HomeScreen> {
           textInputAction: TextInputAction.done,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('취소')),
           FilledButton(
             onPressed: () async {
               final t = ctrl.text.trim();
+              Navigator.pop(dialogContext);
               if (t.isNotEmpty && !_names.contains(t)) {
                 final cat = classifyIngredient(t);
                 if (widget.loggedIn && _userId != null) {
@@ -493,7 +494,6 @@ class HomeScreenState extends State<HomeScreen> {
                   await _persistLocal();
                 }
               }
-              if (mounted) Navigator.pop(context);
             },
             child: const Text('추가'),
           ),
