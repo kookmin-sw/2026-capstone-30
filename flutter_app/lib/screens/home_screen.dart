@@ -94,6 +94,9 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isAnalyzing = false;
   bool _isLoadingRecipes = false;
 
+  String? _selectedDifficulty;
+  int? _selectedMaxMinutes;
+
   final _api = ApiService();
   final _storage = StorageService();
   final _picker = ImagePicker();
@@ -162,6 +165,23 @@ class HomeScreenState extends State<HomeScreen> {
       );
 
   List<String> get _names => _ingredients.map((e) => e['name'] as String).toList();
+
+  // "30분", "1시간", "1시간 30분" 등을 분 단위 정수로 변환
+  int _parseMinutes(String time) {
+    final hourMatch = RegExp(r'(\d+)\s*시간').firstMatch(time);
+    final minMatch = RegExp(r'(\d+)\s*분').firstMatch(time);
+    final hours = hourMatch != null ? int.parse(hourMatch.group(1)!) : 0;
+    final mins = minMatch != null ? int.parse(minMatch.group(1)!) : 0;
+    return hours * 60 + mins;
+  }
+
+  List<Recipe> get _filteredRecipes {
+    return _recipes.where((r) {
+      if (_selectedDifficulty != null && r.difficulty != _selectedDifficulty) return false;
+      if (_selectedMaxMinutes != null && _parseMinutes(r.time) > _selectedMaxMinutes!) return false;
+      return true;
+    }).toList();
+  }
 
   String get _catMessage {
     if (_isAnalyzing) return '재료를 열심히 분석하고 있어요! 잠깐만요';
@@ -319,7 +339,11 @@ class HomeScreenState extends State<HomeScreen> {
       _showError('재료를 먼저 추가해 주세요.');
       return;
     }
-    setState(() => _isLoadingRecipes = true);
+    setState(() {
+      _isLoadingRecipes = true;
+      _selectedDifficulty = null;
+      _selectedMaxMinutes = null;
+    });
     try {
       final profile = await _storage.getProfile();
       final recipes = await _api.getRecipes(_names, _prevRecipes, profile);
@@ -375,6 +399,61 @@ class HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('냉장고를 깨끗하게 비웠어요')),
     );
+  }
+
+  void _showEditDialog(Map<String, dynamic> item) {
+    final ctrl = TextEditingController(text: item['name'] as String);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('재료 수정'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(hintText: '재료 이름'),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          FilledButton(
+            onPressed: () async {
+              final newName = ctrl.text.trim();
+              if (newName.isEmpty || newName == item['name']) {
+                Navigator.pop(context);
+                return;
+              }
+              if (_names.contains(newName)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('이미 있는 재료입니다.')),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              await _editIngredient(item, newName);
+            },
+            child: const Text('수정'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editIngredient(Map<String, dynamic> item, String newName) async {
+    final newCat = classifyIngredient(newName);
+    final id = item['ingredient_id'];
+    if (widget.loggedIn && id != null) {
+      try {
+        await _api.deleteIngredient(id);
+        await _api.saveIngredients(_userId!, [{'name': newName, 'category': newCat}]);
+        await _loadFromServer();
+      } catch (_) {}
+    } else {
+      setState(() {
+        item['name'] = newName;
+        item['category'] = newCat;
+      });
+      await _persistLocal();
+    }
   }
 
   void _showAddDialog() {
@@ -502,6 +581,7 @@ class HomeScreenState extends State<HomeScreen> {
                   ingredients: _ingredients,
                   isAnalyzing: _isAnalyzing,
                   onRemove: _removeIngredient,
+                  onEdit: _showEditDialog,
                   onAdd: _showAddDialog,
                   onClear: _confirmClearIngredients,
                 ),
@@ -528,24 +608,67 @@ class HomeScreenState extends State<HomeScreen> {
 
                 if (_recipes.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_filteredRecipes.length} / ${_recipes.length}개',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                      ),
+                      const Spacer(),
+                      if (_selectedDifficulty != null || _selectedMaxMinutes != null)
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _selectedDifficulty = null;
+                            _selectedMaxMinutes = null;
+                          }),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey[600],
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('초기화', style: TextStyle(fontSize: 13)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _RecipeFilterBar(
+                    selectedDifficulty: _selectedDifficulty,
+                    selectedMaxMinutes: _selectedMaxMinutes,
+                    onDifficultyChanged: (v) => setState(() => _selectedDifficulty = v),
+                    onMaxMinutesChanged: (v) => setState(() => _selectedMaxMinutes = v),
+                  ),
                   const SizedBox(height: 12),
-                  ..._recipes.map((r) => _RecipeCard(
-                        recipe: r,
-                        onAddToShopping: widget.onAddToShopping,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RecipeDetailScreen(
-                              recipeName: r.name,
-                              ingredients: _names,
-                              missingIngredients: r.additional,
-                              userId: _userId,
-                              onAddToShopping: widget.onAddToShopping,
+                  if (_filteredRecipes.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          '해당 조건의 레시피가 없어요.\n필터를 조정해 보세요!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[500], fontSize: 14, height: 1.6),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._filteredRecipes.map((r) => _RecipeCard(
+                          recipe: r,
+                          onAddToShopping: widget.onAddToShopping,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RecipeDetailScreen(
+                                recipeName: r.name,
+                                ingredients: _names,
+                                missingIngredients: r.additional,
+                                userId: _userId,
+                                onAddToShopping: widget.onAddToShopping,
+                              ),
                             ),
                           ),
-                        ),
-                      )),
+                        )),
                   const SizedBox(height: 12),
                   Center(
                     child: OutlinedButton.icon(
@@ -770,12 +893,14 @@ class _IngredientsCard extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
   final bool isAnalyzing;
   final void Function(Map<String, dynamic>) onRemove;
+  final void Function(Map<String, dynamic>) onEdit;
   final VoidCallback onAdd;
   final VoidCallback onClear;
 
   const _IngredientsCard({
     required this.ingredients, required this.isAnalyzing,
-    required this.onRemove, required this.onAdd, required this.onClear,
+    required this.onRemove, required this.onEdit,
+    required this.onAdd, required this.onClear,
   });
 
   Map<String, List<Map<String, dynamic>>> _grouped() {
@@ -882,6 +1007,7 @@ class _IngredientsCard extends StatelessWidget {
                       category: cat,
                       items: grouped[cat]!,
                       onRemove: onRemove,
+                      onEdit: onEdit,
                     ),
               ],
             ),
@@ -895,11 +1021,13 @@ class _CategorySection extends StatelessWidget {
   final String category;
   final List<Map<String, dynamic>> items;
   final void Function(Map<String, dynamic>) onRemove;
+  final void Function(Map<String, dynamic>) onEdit;
 
   const _CategorySection({
     required this.category,
     required this.items,
     required this.onRemove,
+    required this.onEdit,
   });
 
   @override
@@ -927,16 +1055,86 @@ class _CategorySection extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: items.map((item) => Chip(
-              label: Text(item['name'] as String),
-              deleteIcon: const Icon(Icons.close, size: 16),
-              onDeleted: () => onRemove(item),
-              backgroundColor: kAccentLight,
-              deleteIconColor: kPrimary,
-              labelStyle: const TextStyle(color: kPrimary),
-              side: const BorderSide(color: kPrimary, width: 0.5),
+            children: items.map((item) => GestureDetector(
+              onLongPress: () => onEdit(item),
+              child: Chip(
+                label: Text(item['name'] as String),
+                deleteIcon: const Icon(Icons.close, size: 16),
+                onDeleted: () => onRemove(item),
+                backgroundColor: kAccentLight,
+                deleteIconColor: kPrimary,
+                labelStyle: const TextStyle(color: kPrimary),
+                side: const BorderSide(color: kPrimary, width: 0.5),
+              ),
             )).toList(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecipeFilterBar extends StatelessWidget {
+  final String? selectedDifficulty;
+  final int? selectedMaxMinutes;
+  final void Function(String?) onDifficultyChanged;
+  final void Function(int?) onMaxMinutesChanged;
+
+  const _RecipeFilterBar({
+    required this.selectedDifficulty,
+    required this.selectedMaxMinutes,
+    required this.onDifficultyChanged,
+    required this.onMaxMinutesChanged,
+  });
+
+  static const _difficulties = ['쉬움', '보통', '어려움'];
+  static const _timeOptions = [
+    (label: '15분 이내', minutes: 15),
+    (label: '30분 이내', minutes: 30),
+    (label: '60분 이내', minutes: 60),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final d in _difficulties) ...[
+            FilterChip(
+              label: Text(d),
+              selected: selectedDifficulty == d,
+              onSelected: (_) => onDifficultyChanged(selectedDifficulty == d ? null : d),
+              selectedColor: kPrimary,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: selectedDifficulty == d ? Colors.white : Colors.black87,
+                fontSize: 12,
+              ),
+              side: BorderSide(color: selectedDifficulty == d ? kPrimary : Colors.grey.shade300),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Container(width: 1, height: 20, color: Colors.grey.shade300, margin: const EdgeInsets.only(right: 6)),
+          for (final t in _timeOptions) ...[
+            FilterChip(
+              label: Text(t.label),
+              selected: selectedMaxMinutes == t.minutes,
+              onSelected: (_) => onMaxMinutesChanged(selectedMaxMinutes == t.minutes ? null : t.minutes),
+              selectedColor: kPrimary,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: selectedMaxMinutes == t.minutes ? Colors.white : Colors.black87,
+                fontSize: 12,
+              ),
+              side: BorderSide(color: selectedMaxMinutes == t.minutes ? kPrimary : Colors.grey.shade300),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            const SizedBox(width: 6),
+          ],
         ],
       ),
     );

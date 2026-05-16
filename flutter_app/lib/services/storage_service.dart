@@ -53,6 +53,11 @@ class StorageService {
     await prefs.setString(_savedKey, jsonEncode(list.map((r) => r.toJson()).toList()));
   }
 
+  Future<void> deleteAllRecipes() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedKey);
+  }
+
   Future<UserProfile> getProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_profileKey);
