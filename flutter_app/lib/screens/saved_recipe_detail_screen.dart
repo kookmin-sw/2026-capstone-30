@@ -237,7 +237,7 @@ class _SavedRecipeDetailScreenState extends State<SavedRecipeDetailScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF2FAF6),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kPrimary.withValues(alpha: 0.4)),
+                  border: Border.all(color: kPrimary.withOpacity(0.4)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,9 +283,9 @@ class _MissingIngredientsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8231A).withValues(alpha: 0.3)),
+        border: Border.all(color: const Color(0xFFE8231A).withOpacity(0.3)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -295,7 +295,7 @@ class _MissingIngredientsCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8231A).withValues(alpha: 0.08),
+              color: const Color(0xFFE8231A).withOpacity(0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: const Row(
@@ -410,7 +410,7 @@ void _showSubstituteDialog(BuildContext context, String original, Map<String, dy
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8231A).withValues(alpha: 0.1),
+                  color: const Color(0xFFE8231A).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(original, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -528,7 +528,7 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,7 +634,7 @@ class _SectionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

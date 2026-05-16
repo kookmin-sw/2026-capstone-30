@@ -473,7 +473,7 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
                             : '무엇이든 물어보세요',
                     filled: true,
                     fillColor: _isListening
-                        ? Colors.red.withValues(alpha: 0.05)
+                        ? Colors.red.withOpacity(0.05)
                         : Colors.grey[100],
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(22),
@@ -630,7 +630,7 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
         width: 10,
         height: 10,
         decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.5 + 0.5 * _anim.value),
+          color: Colors.red.withOpacity(0.5 + 0.5 * _anim.value),
           shape: BoxShape.circle,
         ),
       ),
@@ -678,7 +678,7 @@ class _BouncingDotState extends State<_BouncingDot> with SingleTickerProviderSta
         height: 8,
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.35 + 0.55 * _anim.value),
+          color: Colors.grey.withOpacity(0.35 + 0.55 * _anim.value),
           shape: BoxShape.circle,
         ),
       ),
