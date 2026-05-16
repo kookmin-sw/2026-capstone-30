@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://captain-lim.github.io/capstone_project_team30/#about">냉집사 사이트 방문하기</a>
+  <a href="https://kookmin-sw.github.io/2026-capstone-30/#about">냉집사 사이트 방문하기</a>
 </p>
 
 <br/><br/>
@@ -32,9 +32,7 @@
 
 #### 8️⃣ [📂 폴더 구조](#-폴더-구조)
 
-#### 9️⃣ [📒 노션](#-노션)
-
-#### 🔟 [📝 참고 자료](#-참고-자료)
+#### 9️⃣ [📝 참고 자료](#-참고-자료)
 
 ---
 
@@ -52,30 +50,50 @@
 
 <table>
   <tr>
-    <td align="center" width="20%">
-      <img src="https://img.icons8.com/ios/60/2A7D52/camera.png"/><br/><br/>
-      <b>AI 식재료 인식</b><br/>
-      <sub>냉장고 사진 한 장으로<br/>재료를 자동 분석해 목록 작성</sub>
+    <td width="20%" valign="top">
+      <div align="center">
+        <img src="https://img.icons8.com/ios/60/2A7D52/camera.png"/>
+        <br/><br/>
+        <b>AI 식재료 인식</b>
+        <br/>
+        <sub>냉장고 사진 한 장으로<br/>재료를 자동 분석해 목록 작성</sub>
+      </div>
     </td>
-    <td align="center" width="20%">
-      <img src="https://img.icons8.com/ios/60/2A7D52/chef-hat.png"/><br/><br/>
-      <b>맞춤 레시피 추천</b><br/>
-      <sub>보유 재료 기반으로<br/>지금 바로 만들 수 있는 레시피 매칭</sub>
+    <td width="20%" valign="top">
+      <div align="center">
+        <img src="https://img.icons8.com/ios/60/2A7D52/chef-hat.png"/>
+        <br/><br/>
+        <b>맞춤 레시피 추천</b>
+        <br/>
+        <sub>보유 재료 기반으로<br/>지금 바로 만들 수 있는 레시피 매칭</sub>
+      </div>
     </td>
-    <td align="center" width="20%">
-      <img src="https://img.icons8.com/ios/60/2A7D52/chat.png"/><br/><br/>
-      <b>AI 챗봇</b><br/>
-      <sub>레시피 관련 궁금한 점을<br/>AI에게 바로 질문하고 답변</sub>
+    <td width="20%" valign="top">
+      <div align="center">
+        <img src="https://img.icons8.com/ios/60/2A7D52/chat.png"/>
+        <br/><br/>
+        <b>AI 챗봇</b>
+        <br/>
+        <sub>레시피 관련 궁금한 점을<br/>AI에게 바로 질문하고 답변</sub>
+      </div>
     </td>
-    <td align="center" width="20%">
-      <img src="https://img.icons8.com/ios/60/2A7D52/youtube-play.png"/><br/><br/>
-      <b>유튜브 영상 연동</b><br/>
-      <sub>레시피에 맞는<br/>신뢰도 높은 요리 영상 연결</sub>
+    <td width="20%" valign="top">
+      <div align="center">
+        <img src="https://img.icons8.com/ios/60/2A7D52/youtube-play.png"/>
+        <br/><br/>
+        <b>유튜브 영상 연동</b>
+        <br/>
+        <sub>레시피에 맞는<br/>신뢰도 높은 요리 영상 연결</sub>
+      </div>
     </td>
-    <td align="center" width="20%">
-      <img src="https://img.icons8.com/ios/60/2A7D52/shopping-cart.png"/><br/><br/>
-      <b>부족 재료 쇼핑 연동</b><br/>
-      <sub>레시피에 부족한 재료를<br/>즉시 구매 가능한 링크 제공</sub>
+    <td width="20%" valign="top">
+      <div align="center">
+        <img src="https://img.icons8.com/ios/60/2A7D52/shopping-cart.png"/>
+        <br/><br/>
+        <b>부족 재료 쇼핑 연동</b>
+        <br/>
+        <sub>레시피에 부족한 재료를<br/>즉시 구매 가능한 링크 제공</sub>
+      </div>
     </td>
   </tr>
 </table>
@@ -140,7 +158,7 @@
 
 - 카테고리별 보관 기한 기반으로 오래된 재료를 자동 감지하여 홈 화면 배너로 안내
 - 매일 18시에 각 카테고리 별 저장 시간이 지난 식재료 알림
-- 짝수 정각에는 시간대별 트렌드 음식 푸시 알림을 전체 사용자에게 발송
+- 짝수 정각에는 추천하는 유행 레시피 푸시 알림을 전체 사용자에게 발송
 
 ### 👤 맞춤형 프로필 설정
 
@@ -157,7 +175,7 @@
 
 ## 🎬 소개 영상
 
-> 소개 영상
+https://github.com/user-attachments/assets/90b171f0-a3ff-426a-a89b-575c0a758a28
 
 ---
 
@@ -184,11 +202,9 @@
 | **Backend** | Node.js, Express |
 | **Database** | MySQL |
 | **AI** | OpenRouter API → Google Gemini 2.5 Flash |
-| **음성** | speech_to_text (음성 입력), flutter_tts (음성 안내) |
-| **영상** | youtube_explode_dart, youtube_player_flutter (인앱 재생) |
 | **외부 연동** | 네이버 쇼핑 검색 (url_launcher) |
 | **푸시 알림** | Firebase Cloud Messaging, node-cron |
-| **개발 환경** | Windows 11, Android Studio, VS Code |
+| **개발 환경** | Android Studio, VS Code |
 | **협업 도구** | Git, GitHub, Notion |
 
 ---
@@ -288,7 +304,9 @@ capstone_project_team30/
 │   ├── config.js                      # 환경 변수 로드
 │   ├── schema.sql                     # 데이터베이스 스키마
 │   ├── curated_trends.json            # 유행 레시피 데이터
-│   └── package.json                   # 서버 의존성
+│   ├── package.json                   # 서버 의존성
+│   ├── .env                           # API 키·포트 (사용자 생성)
+│   └── firebase-admin-key.json        # Firebase 서비스 계정 키 (사용자 생성)
 └── docs/                              # GitHub Pages 소개 페이지
     ├── index.html
     ├── style.css
@@ -298,20 +316,9 @@ capstone_project_team30/
 
 ---
 
-## 📒 노션
-
-[노션 링크](https://www.notion.so/3364608f68978062affde98e98c3aedd)
-
----
-
 ## 📝 참고 자료
 
-| 번호 | 종류 | 제목 | 저자 | 발행년도 |
-|------|------|------|------|----------|
-| 1 | 논문 | 임아 가정 내 음식물 쓰레기 배출량에 대한 객관적 평가와 주관적 지각 비교연구 | 임아영 외 2명 | 2024 |
-| 2 | 논문 | 건강 상태 기반 냉장고 재료 레시피 추천 시스템 | 박주이 외 4명 | 2025 |
-| 3 | 논문 | 냉장고 도우미 챗봇을 통한 요리의 효율화 | 최상욱 외 8명 | 2025 |
-| 4 | 보고서 | 한국환경공단 폐기물 배출 및 처리 현황 | 한국환경공단 | 2023 |
+[노션 링크](https://www.notion.so/3364608f68978062affde98e98c3aedd)
 
 ---
 
