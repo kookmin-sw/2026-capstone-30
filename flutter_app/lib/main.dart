@@ -7,7 +7,7 @@ import 'models/recipe.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
 import 'screens/shopping_screen.dart';
-import 'screens/profile_screen.dart';
+import 'screens/profile_screen.dart' show ProfileScreen, ProfileScreenState;
 import 'screens/splash_screen.dart';
 import 'screens/recipe_detail_screen.dart';
 import 'services/api_service.dart';
@@ -86,6 +86,7 @@ class _MainNavigatorState extends State<MainNavigator> {
   final _savedKey = GlobalKey<SavedScreenState>();
   final _homeKey = GlobalKey<HomeScreenState>();
   final _shoppingKey = GlobalKey<ShoppingScreenState>();
+  final _profileKey = GlobalKey<ProfileScreenState>();
 
   final _api = ApiService();
   final _storage = StorageService();
@@ -308,6 +309,7 @@ class _MainNavigatorState extends State<MainNavigator> {
               SavedScreen(key: _savedKey, onAddToShopping: (ings, name) => _shoppingKey.currentState?.addItems(ings, name)),
               ShoppingScreen(key: _shoppingKey),
               ProfileScreen(
+                key: _profileKey,
                 loggedIn: _loggedIn,
                 onLoginSuccess: _onLoginSuccess,
                 onLogout: _onLogout,
@@ -316,7 +318,11 @@ class _MainNavigatorState extends State<MainNavigator> {
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
-            onDestinationSelected: (i) {
+            onDestinationSelected: (i) async {
+              if (_index == 3 && i != 3) {
+                final canLeave = await _profileKey.currentState?.confirmLeave() ?? true;
+                if (!canLeave) return;
+              }
               if (i == 1) _savedKey.currentState?.reload();
               setState(() => _index = i);
             },

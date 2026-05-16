@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
@@ -18,13 +19,14 @@ class ProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   UserProfile _profile = UserProfile();
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _hasUnsavedChanges = false;
 
   final _api = ApiService();
   final _storage = StorageService();
@@ -49,6 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
+    _hasUnsavedChanges = false;
 
     if (widget.loggedIn) {
       final info = await _storage.getLoginInfo();
@@ -102,6 +105,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
 
+      _hasUnsavedChanges = false;
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(widget.loggedIn ? '프로필이 저장되었습니다.' : '프로필이 저장되었습니다. (로그인 시 서버에 동기화됩니다)'),
@@ -136,9 +141,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (ok == true) widget.onLogout();
   }
 
+  Future<bool> confirmLeave() async {
+    if (!_hasUnsavedChanges) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('저장되지 않은 변경'),
+        content: const Text('프로필이 저장되지 않았어요!\n계속 진행할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('아니'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('응'),
+          ),
+        ],
+      ),
+    );
+    if (result == true) {
+      await _load();
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldLeave = await confirmLeave();
+        if (shouldLeave && mounted) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: kBackground,
       appBar: AppBar(
         title: const Text('내 프로필', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -199,6 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           selected: on,
                           onSelected: (v) => setState(() {
                             v ? _profile.allergies.add(a) : _profile.allergies.remove(a);
+                            _hasUnsavedChanges = true;
                           }),
                           selectedColor: kPrimary.withOpacity(0.15),
                           checkmarkColor: kPrimary,
@@ -216,7 +257,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: Text(d),
                         value: d,
                         groupValue: _profile.dietaryRestriction,
-                        onChanged: (v) => setState(() => _profile.dietaryRestriction = v!),
+                        onChanged: (v) => setState(() {
+                          _profile.dietaryRestriction = v!;
+                          _hasUnsavedChanges = true;
+                        }),
                         activeColor: kPrimary,
                         contentPadding: EdgeInsets.zero,
                         dense: true,
@@ -242,6 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               return;
                             }
                             v ? _profile.preferredCuisines.add(c) : _profile.preferredCuisines.remove(c);
+                            _hasUnsavedChanges = true;
                           }),
                           selectedColor: kPrimary.withOpacity(0.15),
                           checkmarkColor: kPrimary,
@@ -269,6 +314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }
