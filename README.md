@@ -175,7 +175,7 @@
 
 ## 🎬 시연 영상
 
-https://github.com/user-attachments/assets/90b171f0-a3ff-426a-a89b-575c0a758a28
+https://github.com/kookmin-sw/2026-capstone-30/raw/master/demo.mp4
 
 ---
 
