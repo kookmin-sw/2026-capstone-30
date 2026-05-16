@@ -64,19 +64,28 @@ class _SavedRecipeDetailScreenState extends State<SavedRecipeDetailScreen> {
 
   Future<void> _loadMissingIngredients() async {
     try {
-      final stored = await _storage.getIngredients();
-      final fridgeNames = stored.map((e) => (e['name'] as String).trim().toLowerCase()).toSet();
+      final loginInfo = await _storage.getLoginInfo();
+      final userId = loginInfo?['userId'] as int?;
+
+      List<Map<String, dynamic>> fridge;
+      if (userId != null) {
+        try {
+          fridge = await _api.getIngredients(userId);
+        } catch (_) {
+          fridge = await _storage.getIngredients();
+        }
+      } else {
+        fridge = await _storage.getIngredients();
+      }
+
+      final fridgeNames = fridge.map((e) => (e['name'] as String).trim().toLowerCase()).toSet();
       final missing = widget.recipe.ingredients.where((ing) {
         final clean = ing.replaceAll(RegExp(r'\(.*?\)'), '').trim().toLowerCase();
         return !fridgeNames.any((f) => clean.contains(f) || f.contains(clean));
       }).toList();
       if (mounted) setState(() => _missingIngredients = missing);
 
-      if (missing.isNotEmpty) {
-        final loginInfo = await _storage.getLoginInfo();
-        final userId = loginInfo?['userId'] as int?;
-        if (userId != null) _loadSubstitutes(userId, missing);
-      }
+      if (missing.isNotEmpty && userId != null) _loadSubstitutes(userId, missing);
     } catch (_) {}
   }
 
