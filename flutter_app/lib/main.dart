@@ -3,11 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'constants.dart';
+import 'models/recipe.dart';
 import 'screens/home_screen.dart';
 import 'screens/saved_screen.dart' show SavedScreen, SavedScreenState;
 import 'screens/shopping_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/recipe_detail_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 
@@ -141,11 +143,38 @@ class _MainNavigatorState extends State<MainNavigator> {
 
   void _handleNotificationTap(RemoteMessage message) {
     final screen = message.data['screen'];
+    if (screen == 'curated') {
+      final recipeId = message.data['recipeId'];
+      if (recipeId != null) _openCuratedTrend(recipeId);
+      return;
+    }
     int targetIndex = 0;
     if (screen == 'shopping') targetIndex = 2;
     else if (screen == 'saved') targetIndex = 1;
     else if (screen == 'profile') targetIndex = 3;
     if (mounted) setState(() => _index = targetIndex);
+  }
+
+  Future<void> _openCuratedTrend(String recipeId) async {
+    try {
+      final trends = await _api.getCuratedTrends();
+      CuratedTrend? trend;
+      try { trend = trends.firstWhere((t) => t.id == recipeId); } catch (_) {}
+      if (trend == null || !mounted) return;
+      final t = trend;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecipeDetailScreen(
+            recipeName: t.name,
+            ingredients: const [],
+            onAddToShopping: (ings, name) => _shoppingKey.currentState?.addItems(ings, name),
+            presetDetail: t.toRecipeDetail(),
+            presetCookingSteps: t.cookingSteps,
+          ),
+        ),
+      );
+    } catch (_) {}
   }
 
   Future<void> _saveToken(String token) async {

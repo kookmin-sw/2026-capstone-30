@@ -296,6 +296,19 @@ class ApiService {
     throw Exception(_errorMsg(res));
   }
 
+  Future<List<CuratedTrend>> getCuratedTrends() async {
+    final res = await http
+        .get(Uri.parse('$kBaseUrl/api/curated-trends'))
+        .timeout(_timeout);
+
+    if (res.statusCode == 200) {
+      return (jsonDecode(res.body) as List)
+          .map((e) => CuratedTrend.fromJson(e))
+          .toList();
+    }
+    throw Exception(_errorMsg(res));
+  }
+
   Future<String> getChatSuggestion() async {
     try {
       final res = await http

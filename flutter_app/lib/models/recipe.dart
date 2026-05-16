@@ -85,3 +85,61 @@ class RecipeDetail {
         'youtubeLinks': youtubeLinks.map((e) => e.toJson()).toList(),
       };
 }
+
+// 서버에서 미리 큐레이션해둔 유행 레시피
+class CuratedTrend {
+  final String id;
+  final String name;
+  final String difficulty;
+  final String time;
+  final String description;
+  final String trendNote;
+  final List<String> ingredients;
+  final String tips;
+  final List<Map<String, dynamic>> cookingSteps;
+  final List<String> youtubeQueries;
+
+  CuratedTrend({
+    required this.id,
+    required this.name,
+    required this.difficulty,
+    required this.time,
+    required this.description,
+    required this.trendNote,
+    required this.ingredients,
+    required this.tips,
+    required this.cookingSteps,
+    required this.youtubeQueries,
+  });
+
+  factory CuratedTrend.fromJson(Map<String, dynamic> json) => CuratedTrend(
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        difficulty: json['difficulty'] ?? '',
+        time: json['time'] ?? '',
+        description: json['description'] ?? '',
+        trendNote: json['trendNote'] ?? '',
+        ingredients: List<String>.from(json['ingredients'] ?? []),
+        tips: json['tips'] ?? '',
+        cookingSteps: (json['cookingSteps'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList(),
+        youtubeQueries: List<String>.from(json['youtubeQueries'] ?? []),
+      );
+
+  RecipeDetail toRecipeDetail() => RecipeDetail(
+        name: name,
+        ingredients: ingredients,
+        steps: cookingSteps
+            .map((s) => (s['description'] as String?) ?? '')
+            .toList(),
+        tips: tips,
+        youtubeLinks: youtubeQueries
+            .map((q) => YoutubeLink(
+                  title: q,
+                  url:
+                      'https://www.youtube.com/results?search_query=${Uri.encodeComponent(q)}&sp=CAM%3D',
+                ))
+            .toList(),
+      );
+}

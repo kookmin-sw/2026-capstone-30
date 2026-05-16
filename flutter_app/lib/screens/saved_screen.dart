@@ -1,7 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
+import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import 'recipe_detail_screen.dart';
 import 'saved_recipe_detail_screen.dart';
 
 class SavedScreen extends StatefulWidget {
@@ -16,14 +19,42 @@ class SavedScreenState extends State<SavedScreen> {
   List<RecipeDetail> _all = [];
   List<RecipeDetail> _filtered = [];
   bool _isLoading = true;
+  CuratedTrend? _trend;
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
   final _storage = StorageService();
+  final _api = ApiService();
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadTrend();
+  }
+
+  Future<void> _loadTrend() async {
+    try {
+      final list = await _api.getCuratedTrends();
+      if (list.isEmpty || !mounted) return;
+      setState(() => _trend = list[Random().nextInt(list.length)]);
+    } catch (_) {}
+  }
+
+  void _openTrend() {
+    final t = _trend;
+    if (t == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(
+          recipeName: t.name,
+          ingredients: const [],
+          onAddToShopping: widget.onAddToShopping,
+          presetDetail: t.toRecipeDetail(),
+          presetCookingSteps: t.cookingSteps,
+        ),
+      ),
+    );
   }
 
   @override
@@ -107,6 +138,8 @@ class SavedScreenState extends State<SavedScreen> {
               ),
             ),
           ),
+          if (_trend != null && _searchCtrl.text.isEmpty)
+            _CuratedTrendTile(trend: _trend!, onTap: _openTrend),
           Expanded(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filtered.isEmpty
@@ -158,6 +191,60 @@ class SavedScreenState extends State<SavedScreen> {
                 ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CuratedTrendTile extends StatelessWidget {
+  final CuratedTrend trend;
+  final VoidCallback onTap;
+
+  const _CuratedTrendTile({required this.trend, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            color: kPrimary,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(Icons.trending_up, color: Colors.white),
+        ),
+        title: Text(trend.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(4)),
+              child: const Text(
+                '냉집사의 추천',
+                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '${trend.time} · ${trend.difficulty}',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ]),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        onTap: onTap,
       ),
     );
   }

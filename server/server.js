@@ -5,6 +5,7 @@ const cron = require('node-cron');
 const admin = require('firebase-admin');
 const { config } = require('./config');
 const db = require('./db');
+const curatedTrends = require('./curated_trends.json');
 
 // Firebase Admin SDK 초기화
 try {
@@ -692,7 +693,7 @@ app.post('/api/notifications/send', async (req, res) => {
 
 // 전체 사용자에게 푸시 알림 발송
 // 전체 사용자 FCM 발송 공통 함수 (무효 토큰 자동 정리 포함)
-async function broadcastNotification(title, body, screen = 'home') {
+async function broadcastNotification(title, body, screen = 'home', extraData = {}) {
   const [rows] = await db.query(
     'SELECT user_id, fcm_token FROM users WHERE fcm_token IS NOT NULL'
   );
@@ -702,7 +703,7 @@ async function broadcastNotification(title, body, screen = 'home') {
   const result = await admin.messaging().sendEachForMulticast({
     tokens,
     notification: { title, body },
-    data: { screen },
+    data: { screen, ...extraData },
   });
 
   // 무효 토큰 DB에서 자동 삭제
@@ -833,10 +834,8 @@ app.post('/api/notifications/test', async (req, res) => {
     return res.status(503).json({ error: 'Firebase Admin 미초기화' });
   }
   try {
-    const aiMessage = await generateTrendingMessage();
-    const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
-    const stats = await broadcastNotification('냉집사 테스트', body, 'home');
-    res.json({ message: '테스트 알림 발송 완료', body, ...stats });
+    const stats = await sendTrendingNotification();
+    res.json({ message: '테스트 알림 발송 완료', ...stats });
   } catch (error) {
     console.error('[POST /api/notifications/test]', error.message);
     res.status(500).json({ error: '테스트 알림 발송 실패' });
@@ -999,6 +998,11 @@ ${ingredientStr}
   }
 });
 
+// ── 큐레이션 유행 레시피 ──────────────────────────────────────
+app.get('/api/curated-trends', (req, res) => {
+  res.json(curatedTrends);
+});
+
 // Multer 에러 핸들러
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError || err.message.includes('허용')) {
@@ -1008,29 +1012,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
 
-// ── Gemini로 유행 음식 추천 메시지 생성 ─────────────────────────
-async function generateTrendingMessage() {
-  try {
-    const hour = new Date().getHours();
-    const timeSlot = hour < 10 ? '아침' : hour < 14 ? '점심' : hour < 18 ? '오후' : '저녁';
-    const result = await callOpenRouter([
-      {
-        role: 'user',
-        content: `당신은 음식 트렌드에 밝은 냉집사 앱의 알림 담당자입니다.
-지금은 ${timeSlot} 시간대입니다.
-요즘 SNS나 유튜브에서 유행하는 음식이나 요리를 한 가지 골라,
-사용자가 냉집사 앱을 열어 직접 만들어보고 싶게 만드는 짧은 푸시 알림 문구를 작성해주세요.
-조건:
-- 40자 이내
-- 이모지 사용 금지
-- "냉집사에서 찾아보세요" 같은 앱 유도 문구 포함
-- 문구만 출력 (설명 없이)`,
-      },
-    ], 1, 100);
-    return result?.trim() ?? null;
-  } catch {
-    return null;
+// ── 큐레이션 유행 음식 알림 ─────────────────────────────────
+function pickCuratedTrend() {
+  if (!curatedTrends.length) return null;
+  return curatedTrends[Math.floor(Math.random() * curatedTrends.length)];
+}
+
+async function sendTrendingNotification(title = '냉집사') {
+  const trend = pickCuratedTrend();
+  if (!trend) {
+    const body = '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
+    const stats = await broadcastNotification(title, body, 'home');
+    return { body, ...stats };
   }
+  const body = `오늘은 ${trend.name} 어때요? ${trend.trendNote}`;
+  const stats = await broadcastNotification(title, body, 'curated', { recipeId: trend.id });
+  return { body, ...stats };
 }
 
 // ── 자동 알림 스케줄러 (2시간마다) ──────────────────────────────
@@ -1044,9 +1041,7 @@ async function sendScheduledNotification() {
     if (hour === STALE_NOTIFICATION_HOUR) {
       await sendStaleNotifications();
     } else {
-      const aiMessage = await generateTrendingMessage();
-      const body = aiMessage ?? '요즘 유행하는 음식, 냉집사에서 직접 만들어봐요!';
-      await broadcastNotification('냉집사', body, 'home');
+      await sendTrendingNotification();
     }
   } catch (error) {
     console.error('[스케줄러] 알림 발송 실패:', error.message);

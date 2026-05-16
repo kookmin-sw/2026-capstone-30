@@ -15,6 +15,9 @@ class RecipeDetailScreen extends StatefulWidget {
   final List<String> missingIngredients;
   final int? userId;
   final void Function(List<String> ingredients, String recipeName)? onAddToShopping;
+  // 큐레이션 진입 시 서버 호출 스킵용
+  final RecipeDetail? presetDetail;
+  final List<Map<String, dynamic>>? presetCookingSteps;
 
   const RecipeDetailScreen({
     super.key,
@@ -23,6 +26,8 @@ class RecipeDetailScreen extends StatefulWidget {
     this.missingIngredients = const [],
     this.userId,
     this.onAddToShopping,
+    this.presetDetail,
+    this.presetCookingSteps,
   });
 
   @override
@@ -64,6 +69,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Future<void> _load() async {
+    if (widget.presetDetail != null) {
+      if (mounted) setState(() { _detail = widget.presetDetail; _isLoading = false; });
+      _resolveVideoIds();
+      return;
+    }
     try {
       final d = await _api.getRecipeDetail(widget.recipeName, widget.ingredients);
       if (mounted) setState(() { _detail = d; _isLoading = false; });
@@ -163,10 +173,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Future<void> _startCooking() async {
     setState(() => _isLoadingGuide = true);
     try {
-      final rawSteps = await _api.getRecipeSteps(
-        widget.recipeName,
-        widget.ingredients,
-      );
+      final rawSteps = widget.presetCookingSteps ??
+          await _api.getRecipeSteps(widget.recipeName, widget.ingredients);
       final steps = rawSteps.map((s) => CookingStep.fromJson(s)).toList();
       if (!mounted) return;
       final completed = await showCookingGuideSheet(
