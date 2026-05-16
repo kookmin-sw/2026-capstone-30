@@ -377,6 +377,61 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showEditDialog(Map<String, dynamic> item) {
+    final ctrl = TextEditingController(text: item['name'] as String);
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('재료 수정'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(hintText: '재료 이름'),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          FilledButton(
+            onPressed: () async {
+              final newName = ctrl.text.trim();
+              if (newName.isEmpty || newName == item['name']) {
+                Navigator.pop(context);
+                return;
+              }
+              if (_names.contains(newName)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('이미 있는 재료입니다.')),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              await _editIngredient(item, newName);
+            },
+            child: const Text('수정'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editIngredient(Map<String, dynamic> item, String newName) async {
+    final newCat = classifyIngredient(newName);
+    final id = item['ingredient_id'];
+    if (widget.loggedIn && id != null) {
+      try {
+        await _api.deleteIngredient(id);
+        await _api.saveIngredients(_userId!, [{'name': newName, 'category': newCat}]);
+        await _loadFromServer();
+      } catch (_) {}
+    } else {
+      setState(() {
+        item['name'] = newName;
+        item['category'] = newCat;
+      });
+      await _persistLocal();
+    }
+  }
+
   void _showAddDialog() {
     final ctrl = TextEditingController();
     showDialog(
@@ -502,6 +557,7 @@ class HomeScreenState extends State<HomeScreen> {
                   ingredients: _ingredients,
                   isAnalyzing: _isAnalyzing,
                   onRemove: _removeIngredient,
+                  onEdit: _showEditDialog,
                   onAdd: _showAddDialog,
                   onClear: _confirmClearIngredients,
                 ),
@@ -770,12 +826,14 @@ class _IngredientsCard extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
   final bool isAnalyzing;
   final void Function(Map<String, dynamic>) onRemove;
+  final void Function(Map<String, dynamic>) onEdit;
   final VoidCallback onAdd;
   final VoidCallback onClear;
 
   const _IngredientsCard({
     required this.ingredients, required this.isAnalyzing,
-    required this.onRemove, required this.onAdd, required this.onClear,
+    required this.onRemove, required this.onEdit,
+    required this.onAdd, required this.onClear,
   });
 
   Map<String, List<Map<String, dynamic>>> _grouped() {
@@ -882,6 +940,7 @@ class _IngredientsCard extends StatelessWidget {
                       category: cat,
                       items: grouped[cat]!,
                       onRemove: onRemove,
+                      onEdit: onEdit,
                     ),
               ],
             ),
@@ -895,11 +954,13 @@ class _CategorySection extends StatelessWidget {
   final String category;
   final List<Map<String, dynamic>> items;
   final void Function(Map<String, dynamic>) onRemove;
+  final void Function(Map<String, dynamic>) onEdit;
 
   const _CategorySection({
     required this.category,
     required this.items,
     required this.onRemove,
+    required this.onEdit,
   });
 
   @override
@@ -927,14 +988,17 @@ class _CategorySection extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: items.map((item) => Chip(
-              label: Text(item['name'] as String),
-              deleteIcon: const Icon(Icons.close, size: 16),
-              onDeleted: () => onRemove(item),
-              backgroundColor: kAccentLight,
-              deleteIconColor: kPrimary,
-              labelStyle: const TextStyle(color: kPrimary),
-              side: const BorderSide(color: kPrimary, width: 0.5),
+            children: items.map((item) => GestureDetector(
+              onLongPress: () => onEdit(item),
+              child: Chip(
+                label: Text(item['name'] as String),
+                deleteIcon: const Icon(Icons.close, size: 16),
+                onDeleted: () => onRemove(item),
+                backgroundColor: kAccentLight,
+                deleteIconColor: kPrimary,
+                labelStyle: const TextStyle(color: kPrimary),
+                side: const BorderSide(color: kPrimary, width: 0.5),
+              ),
             )).toList(),
           ),
         ],
