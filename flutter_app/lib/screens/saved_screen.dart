@@ -90,6 +90,11 @@ class SavedScreenState extends State<SavedScreen> {
     await _load();
   }
 
+  Future<void> _deleteAll() async {
+    await _storage.deleteAllRecipes();
+    await _load();
+  }
+
   void _confirmDelete(String name) {
     showDialog(
       context: context,
@@ -108,6 +113,24 @@ class SavedScreenState extends State<SavedScreen> {
     );
   }
 
+  void _confirmDeleteAll() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('전체 삭제'),
+        content: const Text('저장된 레시피를 모두 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          FilledButton(
+            onPressed: () { Navigator.pop(context); _deleteAll(); },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('전체 삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,6 +139,14 @@ class SavedScreenState extends State<SavedScreen> {
         title: const Text('저장된 레시피', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: kPrimary,
         foregroundColor: Colors.white,
+        actions: [
+          if (_all.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_outlined),
+              tooltip: '전체 삭제',
+              onPressed: _confirmDeleteAll,
+            ),
+        ],
       ),
       body: Column(
         children: [
