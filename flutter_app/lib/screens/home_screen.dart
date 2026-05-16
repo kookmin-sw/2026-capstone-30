@@ -605,23 +605,42 @@ class HomeScreenState extends State<HomeScreen> {
                 if (_recipes.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  _RecipeFilterBar(
+                    selectedDifficulty: _selectedDifficulty,
+                    selectedMaxMinutes: _selectedMaxMinutes,
+                    onDifficultyChanged: (v) => setState(() => _selectedDifficulty = v),
+                    onMaxMinutesChanged: (v) => setState(() => _selectedMaxMinutes = v),
+                  ),
                   const SizedBox(height: 12),
-                  ..._recipes.map((r) => _RecipeCard(
-                        recipe: r,
-                        onAddToShopping: widget.onAddToShopping,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RecipeDetailScreen(
-                              recipeName: r.name,
-                              ingredients: _names,
-                              missingIngredients: r.additional,
-                              userId: _userId,
-                              onAddToShopping: widget.onAddToShopping,
+                  if (_filteredRecipes.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          '해당 조건의 레시피가 없어요.\n필터를 조정해 보세요!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[500], fontSize: 14, height: 1.6),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._filteredRecipes.map((r) => _RecipeCard(
+                          recipe: r,
+                          onAddToShopping: widget.onAddToShopping,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RecipeDetailScreen(
+                                recipeName: r.name,
+                                ingredients: _names,
+                                missingIngredients: r.additional,
+                                userId: _userId,
+                                onAddToShopping: widget.onAddToShopping,
+                              ),
                             ),
                           ),
-                        ),
-                      )),
+                        )),
                   const SizedBox(height: 12),
                   Center(
                     child: OutlinedButton.icon(
@@ -1021,6 +1040,73 @@ class _CategorySection extends StatelessWidget {
               ),
             )).toList(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecipeFilterBar extends StatelessWidget {
+  final String? selectedDifficulty;
+  final int? selectedMaxMinutes;
+  final void Function(String?) onDifficultyChanged;
+  final void Function(int?) onMaxMinutesChanged;
+
+  const _RecipeFilterBar({
+    required this.selectedDifficulty,
+    required this.selectedMaxMinutes,
+    required this.onDifficultyChanged,
+    required this.onMaxMinutesChanged,
+  });
+
+  static const _difficulties = ['쉬움', '보통', '어려움'];
+  static const _timeOptions = [
+    (label: '15분 이내', minutes: 15),
+    (label: '30분 이내', minutes: 30),
+    (label: '60분 이내', minutes: 60),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final d in _difficulties) ...[
+            FilterChip(
+              label: Text(d),
+              selected: selectedDifficulty == d,
+              onSelected: (_) => onDifficultyChanged(selectedDifficulty == d ? null : d),
+              selectedColor: kPrimary,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: selectedDifficulty == d ? Colors.white : Colors.black87,
+                fontSize: 12,
+              ),
+              side: BorderSide(color: selectedDifficulty == d ? kPrimary : Colors.grey.shade300),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Container(width: 1, height: 20, color: Colors.grey.shade300, margin: const EdgeInsets.only(right: 6)),
+          for (final t in _timeOptions) ...[
+            FilterChip(
+              label: Text(t.label),
+              selected: selectedMaxMinutes == t.minutes,
+              onSelected: (_) => onMaxMinutesChanged(selectedMaxMinutes == t.minutes ? null : t.minutes),
+              selectedColor: kPrimary,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: selectedMaxMinutes == t.minutes ? Colors.white : Colors.black87,
+                fontSize: 12,
+              ),
+              side: BorderSide(color: selectedMaxMinutes == t.minutes ? kPrimary : Colors.grey.shade300),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+            const SizedBox(width: 6),
+          ],
         ],
       ),
     );
