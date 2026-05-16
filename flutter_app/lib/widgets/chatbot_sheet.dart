@@ -252,12 +252,12 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
     );
   }
 
-  // AI 응답에서 레시피명 추출 시도
+  // AI 응답에서 레시피명 추출 시도 (공백 포함 최대 15자)
   String _extractRecipeName(String text) {
     final patterns = [
-      RegExp(r'(\S{2,8})\s*만드는\s*법'),
-      RegExp(r'(\S{2,8})\s*레시피'),
-      RegExp(r'(\S{2,8})\s*요리'),
+      RegExp(r'([가-힣a-zA-Z][가-힣a-zA-Z0-9\s]{1,14}?)\s*만드는\s*법'),
+      RegExp(r'([가-힣a-zA-Z][가-힣a-zA-Z0-9\s]{1,14}?)\s*레시피'),
+      RegExp(r'([가-힣a-zA-Z][가-힣a-zA-Z0-9\s]{1,14}?)\s*요리'),
     ];
     for (final pattern in patterns) {
       final match = pattern.firstMatch(text);
@@ -268,9 +268,8 @@ class _ChatbotSheetState extends State<ChatbotSheet> {
 
   Future<void> _saveRecipe(String messageText, {String? prevUserMsg}) async {
     // 사용자 질문 → AI 응답 순으로 이름 추출 시도
-    final name = (prevUserMsg != null ? _extractRecipeName(prevUserMsg) : '') .isNotEmpty
-        ? _extractRecipeName(prevUserMsg!)
-        : _extractRecipeName(messageText);
+    final nameFromUser = prevUserMsg != null ? _extractRecipeName(prevUserMsg) : '';
+    final name = nameFromUser.isNotEmpty ? nameFromUser : _extractRecipeName(messageText);
 
     if (name.isEmpty) {
       if (mounted) {
