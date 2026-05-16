@@ -250,7 +250,9 @@ ${cuisineInfo}${prevInfo}
       "additional": ["추가 필요 재료1"]
     }
   ]
-}`;
+}
+
+difficulty는 반드시 "쉬움", "보통", "어려움" 세 가지 중 하나만 사용하세요.`;
 
   try {
     const response = await callOpenRouter([

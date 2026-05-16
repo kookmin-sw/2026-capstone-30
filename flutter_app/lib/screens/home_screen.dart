@@ -177,7 +177,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   List<Recipe> get _filteredRecipes {
     return _recipes.where((r) {
-      if (_selectedDifficulty != null && r.difficulty != _selectedDifficulty) return false;
+      if (_selectedDifficulty != null &&
+          r.difficulty.trim() != _selectedDifficulty) return false;
       if (_selectedMaxMinutes != null && _parseMinutes(r.time) > _selectedMaxMinutes!) return false;
       return true;
     }).toList();
