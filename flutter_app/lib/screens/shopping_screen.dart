@@ -37,6 +37,10 @@ class ShoppingScreenState extends State<ShoppingScreen> {
     });
   }
 
+  void _deleteItem(ShoppingItem item) {
+    setState(() => _items.remove(item));
+  }
+
   void _clearItems() {
     setState(() => _items.clear());
   }
@@ -164,6 +168,7 @@ class ShoppingScreenState extends State<ShoppingScreen> {
             items: entry.value,
             onShoppingLink: _openShoppingLink,
             onToggle: (item) => setState(() => item.checked = !item.checked),
+            onDelete: _deleteItem,
           ),
         ),
         const SizedBox(height: 32),
@@ -177,12 +182,14 @@ class _RecipeGroup extends StatelessWidget {
   final List<ShoppingItem> items;
   final void Function(String) onShoppingLink;
   final void Function(ShoppingItem) onToggle;
+  final void Function(ShoppingItem) onDelete;
 
   const _RecipeGroup({
     required this.recipeName,
     required this.items,
     required this.onShoppingLink,
     required this.onToggle,
+    required this.onDelete,
   });
 
   @override
@@ -236,6 +243,7 @@ class _RecipeGroup extends StatelessWidget {
               item: item,
               onShoppingLink: () => onShoppingLink(item.ingredient),
               onToggle: () => onToggle(item),
+              onDelete: () => onDelete(item),
             ),
           ),
         ],
@@ -248,11 +256,13 @@ class _IngredientTile extends StatelessWidget {
   final ShoppingItem item;
   final VoidCallback onShoppingLink;
   final VoidCallback onToggle;
+  final VoidCallback onDelete;
 
   const _IngredientTile({
     required this.item,
     required this.onShoppingLink,
     required this.onToggle,
+    required this.onDelete,
   });
 
   @override
@@ -272,9 +282,13 @@ class _IngredientTile extends StatelessWidget {
           color: item.checked ? Colors.grey[400] : null,
         ),
       ),
-      trailing: item.checked
-          ? const Icon(Icons.check_circle, color: kPrimary, size: 22)
-          : ElevatedButton.icon(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (item.checked)
+            const Icon(Icons.check_circle, color: kPrimary, size: 22)
+          else
+            ElevatedButton.icon(
               onPressed: onShoppingLink,
               icon: const Icon(Icons.shopping_bag_outlined, size: 15),
               label: const Text('구매', style: TextStyle(fontSize: 13)),
@@ -289,6 +303,16 @@ class _IngredientTile extends StatelessWidget {
                 ),
               ),
             ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: Icon(Icons.close, size: 18, color: Colors.grey[400]),
+            onPressed: onDelete,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            splashRadius: 16,
+          ),
+        ],
+      ),
     );
   }
 }
