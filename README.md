@@ -202,14 +202,16 @@
 
 | 분류 | 기술 |
 |------|------|
-| **Frontend** | Flutter (Dart), Android Studio, VS Code |
-| **Backend** | Node.js, Express, REST API |
+| **Frontend** | Flutter (Dart) |
+| **Backend** | Node.js, Express |
 | **Database** | MySQL |
-| **AI** | Google Gemini API (Vision) |
-| **External API** | 유튜브 링크, 쇼핑몰 API |
-| **Infrastructure** | FCM (Firebase Cloud Messaging) |
-| **운영체제** | Windows 11 |
-| **협업 도구** | Git, Notion |
+| **AI** | OpenRouter API → Google Gemini 2.5 Flash |
+| **음성** | speech_to_text (음성 입력), flutter_tts (음성 안내) |
+| **영상** | youtube_explode_dart, youtube_player_flutter (인앱 재생) |
+| **외부 연동** | 네이버 쇼핑 검색 (url_launcher) |
+| **푸시 알림** | Firebase Cloud Messaging, node-cron |
+| **개발 환경** | Windows 11, Android Studio, VS Code |
+| **협업 도구** | Git, GitHub, Notion |
 
 ---
 
@@ -263,29 +265,44 @@ flutter run --release
 ## 📂 폴더 구조
 
 ```
-capstone/
-├── flutter_app/                     # Flutter 모바일 앱
-│   ├── android/                     # Android 설정
-│   ├── assets/                      # 이미지, 폰트 등 정적 에셋
+capstone_project_team30/
+├── flutter_app/                       # Flutter 모바일 앱
+│   ├── android/                       # Android 설정
+│   ├── assets/                        # 앱 아이콘, 캐릭터 이미지 등
 │   └── lib/
-│       ├── main.dart                # 앱 진입점, 하단 네비게이션 (홈/저장/프로필)
-│       ├── constants.dart           # 서버 URL, 테마 색상
+│       ├── main.dart                  # 메인 화면, 하단 네비게이션, FCM 초기화
+│       ├── constants.dart             # 서버 URL, 테마 색상
 │       ├── models/
-│       │   ├── recipe.dart          # Recipe (추천 카드), RecipeDetail (상세+저장용)
-│       │   └── user_profile.dart    # 알레르기, 식이제한, 선호 요리
+│       │   ├── recipe.dart            # 레시피·유튜브·유행 데이터 클래스
+│       │   └── user_profile.dart      # 알레르기, 식이제한, 선호 요리
 │       ├── services/
-│       │   ├── api_service.dart     # HTTP 호출 (analyzeImage / getRecipes / getRecipeDetail)
-│       │   └── storage_service.dart # SharedPreferences (저장 레시피, 프로필, 재료)
-│       └── screens/
-│           ├── home_screen.dart              # 이미지 업로드 → 재료 분석 → 레시피 추천
-│           ├── recipe_detail_screen.dart     # 실시간 로드 레시피 상세 (저장 가능)
-│           ├── saved_screen.dart             # 저장된 레시피 목록 + 검색
-│           ├── saved_recipe_detail_screen.dart  # 저장된 레시피 상세
-│           └── profile_screen.dart           # 사용자 취향 설정
-└── server/                          # Node.js 백엔드 서버
-    ├── server.js                    # 메인 서버 (API 라우터 포함)
-    ├── config.js                    # 환경 설정
-    └── package.json                 # 서버 의존성
+│       │   ├── api_service.dart       # 백엔드 HTTP 호출
+│       │   └── storage_service.dart   # SharedPreferences (저장 레시피, 프로필, 재료)
+│       ├── screens/
+│       │   ├── splash_screen.dart                # 앱 시작
+│       │   ├── home_screen.dart                  # 사진 업로드 → 재료 분석 → 레시피 추천 + 유통기한 배너
+│       │   ├── recipe_detail_screen.dart         # 추천 레시피 상세 (유튜브·대체재·요리 가이드)
+│       │   ├── saved_screen.dart                 # 저장된 레시피 + 검색 + 유행 레시피 추천
+│       │   ├── saved_recipe_detail_screen.dart   # 저장된 레시피 상세 화면
+│       │   ├── shopping_screen.dart              # 부족 재료 → 네이버 쇼핑 연동
+│       │   └── profile_screen.dart               # 사용자 취향 설정
+│       └── widgets/
+│           ├── login_form.dart                   # 로그인·회원가입 폼
+│           ├── chatbot_sheet.dart                # AI 챗봇
+│           ├── cooking_guide_sheet.dart          # 단계별 요리 가이드 + TTS
+│           └── recipe_rating_sheet.dart          # 요리 별점 시트
+├── server/                            # Node.js 백엔드 서버
+│   ├── server.js                      # 메인 서버 (API 라우터, 스케줄러)
+│   ├── db.js                          # MySQL 커넥션 풀
+│   ├── config.js                      # 환경 변수 로드
+│   ├── schema.sql                     # 데이터베이스 스키마
+│   ├── curated_trends.json            # 유행 레시피 데이터
+│   └── package.json                   # 서버 의존성
+└── docs/                              # GitHub Pages 소개 페이지
+    ├── index.html
+    ├── style.css
+    ├── script.js
+    └── assets/                        # 소개 페이지용 이미지·포스터
 ```
 
 ---
