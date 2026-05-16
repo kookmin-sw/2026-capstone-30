@@ -94,6 +94,9 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isAnalyzing = false;
   bool _isLoadingRecipes = false;
 
+  String? _selectedDifficulty;
+  int? _selectedMaxMinutes;
+
   final _api = ApiService();
   final _storage = StorageService();
   final _picker = ImagePicker();
@@ -162,6 +165,23 @@ class HomeScreenState extends State<HomeScreen> {
       );
 
   List<String> get _names => _ingredients.map((e) => e['name'] as String).toList();
+
+  // "30분", "1시간", "1시간 30분" 등을 분 단위 정수로 변환
+  int _parseMinutes(String time) {
+    final hourMatch = RegExp(r'(\d+)\s*시간').firstMatch(time);
+    final minMatch = RegExp(r'(\d+)\s*분').firstMatch(time);
+    final hours = hourMatch != null ? int.parse(hourMatch.group(1)!) : 0;
+    final mins = minMatch != null ? int.parse(minMatch.group(1)!) : 0;
+    return hours * 60 + mins;
+  }
+
+  List<Recipe> get _filteredRecipes {
+    return _recipes.where((r) {
+      if (_selectedDifficulty != null && r.difficulty != _selectedDifficulty) return false;
+      if (_selectedMaxMinutes != null && _parseMinutes(r.time) > _selectedMaxMinutes!) return false;
+      return true;
+    }).toList();
+  }
 
   String get _catMessage {
     if (_isAnalyzing) return '재료를 열심히 분석하고 있어요! 잠깐만요';
