@@ -224,7 +224,10 @@ app.post('/api/recipes', rateLimiter, async (req, res) => {
       : '';
   const cuisineInfo =
     profile.preferredCuisines?.length > 0
-      ? `선호 요리 종류: ${profile.preferredCuisines.join(', ')}`
+      ? `선호 요리 종류: ${profile.preferredCuisines.join(', ')}
+- 추천 레시피 상단에 선호 요리 종류 각각마다 1개씩 배치하세요. (선호가 1개면 1번째에 1개, 2개면 1번째·2번째에 각각 다른 종류로 1개씩)
+- 위 선호 레시피들은 핵심 재료가 부족해도 한식 가정식으로 우회하지 말고, 부족한 재료를 additional 배열에 솔직하게 모두 나열하세요.
+- 그 외 나머지 레시피는 선호 요리 종류 영향 없이, 보유 재료에 자연스러운 평범한 레시피로 추천하세요.`
       : '';
   const constraints = [allergiesWarning, dietaryWarning].filter(Boolean).join('\n');
   const prevInfo =

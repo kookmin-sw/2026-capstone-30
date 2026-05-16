@@ -235,6 +235,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: Text(c),
                           selected: on,
                           onSelected: (v) => setState(() {
+                            if (v && _profile.preferredCuisines.length >= 2) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('선호 요리는 2개까지 선택해주세요')),
+                              );
+                              return;
+                            }
                             v ? _profile.preferredCuisines.add(c) : _profile.preferredCuisines.remove(c);
                           }),
                           selectedColor: kPrimary.withOpacity(0.15),
