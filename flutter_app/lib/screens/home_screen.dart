@@ -339,7 +339,11 @@ class HomeScreenState extends State<HomeScreen> {
       _showError('재료를 먼저 추가해 주세요.');
       return;
     }
-    setState(() => _isLoadingRecipes = true);
+    setState(() {
+      _isLoadingRecipes = true;
+      _selectedDifficulty = null;
+      _selectedMaxMinutes = null;
+    });
     try {
       final profile = await _storage.getProfile();
       final recipes = await _api.getRecipes(_names, _prevRecipes, profile);
@@ -604,7 +608,31 @@ class HomeScreenState extends State<HomeScreen> {
 
                 if (_recipes.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const Text('추천 레시피', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_filteredRecipes.length} / ${_recipes.length}개',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                      ),
+                      const Spacer(),
+                      if (_selectedDifficulty != null || _selectedMaxMinutes != null)
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _selectedDifficulty = null;
+                            _selectedMaxMinutes = null;
+                          }),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey[600],
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('초기화', style: TextStyle(fontSize: 13)),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   _RecipeFilterBar(
                     selectedDifficulty: _selectedDifficulty,
