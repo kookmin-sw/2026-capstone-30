@@ -132,6 +132,28 @@ function classifyIngredient(name) {
   return '기타';
 }
 
+// 알레르기 키워드 사전 (해산물·유제품은 카테고리 매칭, 나머지는 키워드 매칭)
+const ALLERGY_KEYWORDS = {
+  '견과류': ['아몬드', '호두', '땅콩', '잣', '캐슈', '피스타치오', '마카다미아', '헤이즐넛', '피칸', '밤'],
+  '밀': ['밀가루', '빵', '면', '국수', '우동', '소바', '파스타', '스파게티', '라면', '쌀국수'],
+  '계란': ['계란', '달걀'],
+  '대두': ['콩', '두부', '유부', '두유', '콩나물'],
+};
+const ALLERGY_CATEGORIES = new Set(['해산물', '유제품']);
+
+// 사용자 알레르기에 해당하는 재료를 ingredients에서 제외
+function filterAllergyIngredients(ingredients, allergies) {
+  if (!Array.isArray(allergies) || allergies.length === 0) return ingredients;
+  const cats = allergies.filter((a) => ALLERGY_CATEGORIES.has(a));
+  const keywords = allergies.flatMap((a) => ALLERGY_KEYWORDS[a] ?? []);
+  return ingredients.filter((ing) => {
+    const trimmed = (ing ?? '').trim();
+    if (cats.includes(classifyIngredient(trimmed))) return false;
+    if (keywords.some((kw) => trimmed.includes(kw))) return false;
+    return true;
+  });
+}
+
 // 서버 상태 확인
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -208,6 +230,11 @@ app.post('/api/recipes', rateLimiter, async (req, res) => {
     return res.status(400).json({ error: '재료 목록이 필요합니다.' });
   }
 
+  const filteredIngredients = filterAllergyIngredients(ingredients, profile.allergies);
+  if (filteredIngredients.length === 0) {
+    return res.status(400).json({ error: '보유 재료가 모두 알레르기에 해당해요. 다른 재료를 추가해 주세요.' });
+  }
+
   const allergiesWarning =
     profile.allergies?.length > 0
       ? `다음 알레르기 재료가 포함된 레시피는 절대 추천하지 마세요: ${profile.allergies.join(', ')}`
@@ -237,7 +264,7 @@ app.post('/api/recipes', rateLimiter, async (req, res) => {
 
   const prompt = `당신은 전문 요리사입니다. 다음 재료로 만들 수 있는 레시피 3-5개를 추천해주세요.
 
-사용 가능한 재료: ${ingredients.join(', ')}
+사용 가능한 재료: ${filteredIngredients.join(', ')}
 ${constraints ? `[필수 제한 사항 - 반드시 지켜야 합니다]\n${constraints}` : ''}
 ${cuisineInfo}${prevInfo}
 
