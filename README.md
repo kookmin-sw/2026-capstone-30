@@ -28,7 +28,7 @@
 
 #### 6️⃣ [⚒️ 기술 스택](#️-기술-스택)
 
-#### 7️⃣ [📖 사용법](#-사용법)
+#### 7️⃣ [📖 사용법 (환경 설정)](#-사용법-환경-설정)
 
 #### 8️⃣ [📂 폴더 구조](#-폴더-구조)
 
@@ -52,25 +52,30 @@
 
 <table>
   <tr>
-    <td align="center" width="25%">
-      <img src="https://img.icons8.com/ios/60/FF6B35/camera.png"/><br/><br/>
+    <td align="center" width="20%">
+      <img src="https://img.icons8.com/ios/60/2A7D52/camera.png"/><br/><br/>
       <b>AI 식재료 인식</b><br/>
-      <sub>촬영 한 번으로<br/>냉장고 재료를 자동 분석</sub>
+      <sub>냉장고 사진 한 장으로<br/>재료를 자동 분석해 목록 작성</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="https://img.icons8.com/ios/60/FF6B35/chef-hat.png"/><br/><br/>
+    <td align="center" width="20%">
+      <img src="https://img.icons8.com/ios/60/2A7D52/chef-hat.png"/><br/><br/>
       <b>맞춤 레시피 추천</b><br/>
-      <sub>보유 재료 기반<br/>즉시 조리 가능한 레시피 매칭</sub>
+      <sub>보유 재료 기반으로<br/>지금 바로 만들 수 있는 레시피 매칭</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="https://img.icons8.com/ios/60/FF6B35/youtube-play.png"/><br/><br/>
+    <td align="center" width="20%">
+      <img src="https://img.icons8.com/ios/60/2A7D52/chat.png"/><br/><br/>
+      <b>AI 챗봇</b><br/>
+      <sub>레시피 관련 궁금한 점을<br/>AI에게 바로 질문하고 답변</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="https://img.icons8.com/ios/60/2A7D52/youtube-play.png"/><br/><br/>
       <b>유튜브 영상 연동</b><br/>
-      <sub>신뢰도 높은 요리 영상을<br/>바로 제공</sub>
+      <sub>레시피에 맞는<br/>신뢰도 높은 요리 영상 연결</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="https://img.icons8.com/ios/60/FF6B35/leaf.png"/><br/><br/>
-      <b>친환경 식생활</b><br/>
-      <sub>냉장고 재료 최우선 활용으로<br/>음식물 쓰레기 감소</sub>
+    <td align="center" width="20%">
+      <img src="https://img.icons8.com/ios/60/2A7D52/shopping-cart.png"/><br/><br/>
+      <b>부족 재료 쇼핑 연동</b><br/>
+      <sub>레시피에 부족한 재료를<br/>즉시 구매 가능한 링크 제공</sub>
     </td>
   </tr>
 </table>
@@ -167,36 +172,7 @@
 
 ## 🌐 시스템 구조
 
-```
-사용자 (스마트폰)
-        │
-        ▼
- [Flutter 앱 (Android)]
-        │                                    ┌── SharedPreferences (로컬 저장)
-  ┌─────┼──────┬────────┬────────┐           │   · 저장 레시피 · 프로필
-  │     │      │        │        │           │   · 식재료 캐시 · 로그인 정보
-카메라  텍스트  음성     TTS    푸시 수신    │
-/갤러리 입력   입력(STT) 출력   (FCM)        │
-  │     │      │                              │
-  └─────┴──────┴──────────────────────────────┘
-        │
-        ▼
-[Node.js 백엔드 서버 (Express)]
-  │
-  ├── OpenRouter API → Google Gemini 2.5 Flash
-  │     (이미지 → 식재료 인식, 레시피 추천, 대체재, 챗봇, 요리 가이드)
-  │
-  ├── MySQL DB
-  │     (사용자, 알레르기, 선호 요리, 냉장고 식재료, FCM 토큰)
-  │
-  ├── 유튜브 검색·인앱 재생 (youtube_explode_dart 연동)
-  ├── 네이버 쇼핑 검색 링크 연동
-  │
-  └── Firebase Admin SDK → FCM 푸시 알림
-        (2시간 주기 스케줄러 — 짝수 정각 트렌드 / 18시 유통기한 안내)
-```
-
-> 냉장고 사진 촬영 → AI 식재료 인식 → 맞춤형 레시피 추천 → 유튜브 영상·대체재·쇼핑 연동 → 단계별 요리 가이드까지, 식생활의 전 흐름을 하나의 앱에 담고 있습니다.
+<img src="docs/assets/architecture.png" width="80%"/>
 
 ---
 
