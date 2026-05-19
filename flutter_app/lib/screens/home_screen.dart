@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -86,7 +87,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  List<File> _images = [];
+  List<XFile> _images = [];
   // ingredient_id로 판단하기, null이면 로컬(비로그인), 값 있으면 DB(로그인)
   List<Map<String, dynamic>> _ingredients = [];
   List<Recipe> _recipes = [];
@@ -244,15 +245,14 @@ class HomeScreenState extends State<HomeScreen> {
     );
     if (xFile == null) return;
 
-    final newImage = File(xFile.path);
     setState(() {
-      _images.add(newImage);
+      _images.add(xFile);
       _recipes = [];
       _isAnalyzing = true;
     });
 
     try {
-      final result = await _api.analyzeImage(newImage);
+      final result = await _api.analyzeImage(xFile);
       if (result.isNotEmpty) {
         final items = result
             .map((n) => <String, dynamic>{'name': n, 'category': classifyIngredient(n)})
@@ -291,7 +291,7 @@ class HomeScreenState extends State<HomeScreen> {
     );
     if (xFiles.isEmpty) return;
 
-    final newImages = xFiles.map((x) => File(x.path)).toList();
+    final newImages = xFiles.toList();
     setState(() {
       _images.addAll(newImages);
       _recipes = [];
@@ -299,8 +299,8 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      for (final img in newImages) {
-        final result = await _api.analyzeImage(img);
+      for (final xf in newImages) {
+        final result = await _api.analyzeImage(xf);
         if (result.isNotEmpty) {
           final items = result
               .map((n) => <String, dynamic>{'name': n, 'category': classifyIngredient(n)})
@@ -764,7 +764,7 @@ class _StaleBanner extends StatelessWidget {
 }
 
 class _ImageUploadCard extends StatelessWidget {
-  final List<File> images;
+  final List<XFile> images;
   final bool isAnalyzing;
   final VoidCallback onTap;
   final void Function(int index) onRemove;
@@ -848,7 +848,9 @@ class _ImageUploadCard extends StatelessWidget {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(images[index], fit: BoxFit.cover, width: 160, height: double.infinity),
+                          child: kIsWeb
+                              ? Image.network(images[index].path, fit: BoxFit.cover, width: 160, height: double.infinity)
+                              : Image.file(File(images[index].path), fit: BoxFit.cover, width: 160, height: double.infinity),
                         ),
                         Positioned(
                           top: 6,

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
 import '../models/user_profile.dart';
@@ -23,14 +24,15 @@ class ApiService {
     }
   }
 
-  Future<List<String>> analyzeImage(File image) async {
+  Future<List<String>> analyzeImage(XFile image) async {
     await checkConnection();
 
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$kBaseUrl/api/analyze'),
     );
-    request.files.add(await http.MultipartFile.fromPath('image', image.path));
+    final bytes = await image.readAsBytes();
+    request.files.add(http.MultipartFile.fromBytes('image', bytes, filename: image.name));
 
     final streamed = await request.send().timeout(_timeout);
     final response = await http.Response.fromStream(streamed);

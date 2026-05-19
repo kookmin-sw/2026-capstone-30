@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
@@ -634,6 +635,48 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
     super.dispose();
   }
 
+  Widget _buildWebYoutubePlayer() {
+    final link = widget.links[_selectedIndex < widget.links.length ? _selectedIndex : 0];
+    final videoId = link.videoId;
+    final thumbnailUrl = videoId != null
+        ? 'https://img.youtube.com/vi/$videoId/hqdefault.jpg'
+        : null;
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(link.url), mode: LaunchMode.externalApplication),
+      child: Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (thumbnailUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(thumbnailUrl, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const Icon(Icons.play_circle_fill, color: Colors.white, size: 60),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Text(link.title, style: const TextStyle(color: Colors.white, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _selectVideo(int index) async {
     final link = widget.links[index];
     setState(() => _selectedIndex = index);
@@ -682,6 +725,8 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
               ),
               child: const Center(child: CircularProgressIndicator()),
             )
+          else if (kIsWeb && widget.links.isNotEmpty)
+            _buildWebYoutubePlayer()
           else if (_controller != null)
             YoutubePlayerBuilder(
               player: YoutubePlayer(
