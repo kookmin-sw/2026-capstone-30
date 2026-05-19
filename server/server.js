@@ -9,13 +9,18 @@ const curatedTrends = require('./curated_trends.json');
 
 // Firebase Admin SDK 초기화
 try {
-  const serviceAccount = require('./firebase-admin-key.json');
+  let serviceAccount;
+  if (process.env.FIREBASE_ADMIN_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_KEY);
+  } else {
+    serviceAccount = require('./firebase-admin-key.json');
+  }
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
   console.log('[Firebase Admin] 초기화 완료');
 } catch (e) {
-  console.warn('[Firebase Admin] firebase-admin-key.json 없음 — 푸시 알림 비활성화');
+  console.warn('[Firebase Admin] 키 없음 — 푸시 알림 비활성화');
 }
 
 const app = express();
