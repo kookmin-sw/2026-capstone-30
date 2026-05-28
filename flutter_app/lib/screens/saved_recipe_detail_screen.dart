@@ -45,6 +45,19 @@ class _SavedRecipeDetailScreenState extends State<SavedRecipeDetailScreen> {
   }
 
   Future<void> _resolveVideoIds() async {
+    // 서버가 이미 videoId를 포함해서 내려준 경우 그대로 사용
+    final allHaveId = widget.recipe.youtubeLinks.every((l) => l.videoId != null);
+    if (allHaveId) {
+      if (mounted) setState(() { _resolvedLinks = widget.recipe.youtubeLinks; _isLoadingVideos = false; });
+      return;
+    }
+
+    // 웹에서는 youtube_explode_dart가 CORS로 실패하므로 그대로 사용
+    if (kIsWeb) {
+      if (mounted) setState(() { _resolvedLinks = widget.recipe.youtubeLinks; _isLoadingVideos = false; });
+      return;
+    }
+
     setState(() => _isLoadingVideos = true);
     final yt = YoutubeExplode();
     final resolved = <YoutubeLink>[];

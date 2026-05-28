@@ -62,7 +62,29 @@ function rateLimiter(req, res, next) {
   next();
 }
 
-// OpenRouter API 호출 
+// YouTube 내부 API로 검색어 → 첫 번째 영상 videoId 조회
+async function getYoutubeVideoId(query) {
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        context: { client: { clientName: 'WEB', clientVersion: '2.20231121.07.00' } },
+      }),
+    });
+    const json = await res.json();
+    const items =
+      json?.contents?.twoColumnSearchResultsRenderer?.primaryContents
+        ?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents ?? [];
+    const video = items.find((i) => i.videoRenderer)?.videoRenderer;
+    return video?.videoId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// OpenRouter API 호출
 async function callOpenRouter(messages, retries = 3, maxTokens = 1024) {
   for (let attempt = 0; attempt < retries; attempt++) {
     const controller = new AbortController();
@@ -337,12 +359,21 @@ youtubeQueries는 이 레시피를 유튜브에서 검색할 때 좋은 한국�
     const text = data.choices?.[0]?.message?.content ?? '';
     const parsed = extractJson(text);
 
-    // youtubeQueries → 인기순(조회수) 정렬 YouTube 검색 URL
+    // youtubeQueries → videoId 포함 링크 (서버에서 YouTube 검색)
     const queries = Array.isArray(parsed.youtubeQueries) ? parsed.youtubeQueries : [];
-    parsed.youtubeLinks = queries.map((q) => ({
-      title: q,
-      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=CAM%3D`,
-    }));
+    const youtubeLinks = await Promise.all(
+      queries.map(async (q) => {
+        const videoId = await getYoutubeVideoId(q);
+        return {
+          title: q,
+          url: videoId
+            ? `https://www.youtube.com/watch?v=${videoId}`
+            : `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=CAM%3D`,
+          ...(videoId && { videoId }),
+        };
+      })
+    );
+    parsed.youtubeLinks = youtubeLinks;
     delete parsed.youtubeQueries;
 
     res.json(parsed);
