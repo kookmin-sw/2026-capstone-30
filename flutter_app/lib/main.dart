@@ -280,6 +280,12 @@ class _MainNavigatorState extends State<MainNavigator> {
 
   Future<void> _onLogout() async {
     final info = await _storage.getLoginInfo();
+    await _storage.logout();
+    await _storage.saveIngredients([]);
+    if (!mounted) return;
+    setState(() => _loggedIn = false);
+    _homeKey.currentState?.reloadFromServer();
+    // FCM 토큰 삭제는 UI 업데이트 후 백그라운드에서 처리
     if (info != null) {
       try {
         final token = await FirebaseMessaging.instance.getToken()
@@ -289,11 +295,6 @@ class _MainNavigatorState extends State<MainNavigator> {
         }
       } catch (_) {}
     }
-    await _storage.logout();
-    await _storage.saveIngredients([]);
-    if (!mounted) return;
-    setState(() => _loggedIn = false);
-    _homeKey.currentState?.reloadFromServer();
   }
 
   @override
