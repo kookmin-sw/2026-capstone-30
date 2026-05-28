@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../utils/youtube_embed_stub.dart'
+    if (dart.library.html) '../utils/youtube_embed_web.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
@@ -638,9 +640,21 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
   Widget _buildWebYoutubePlayer() {
     final link = widget.links[_selectedIndex < widget.links.length ? _selectedIndex : 0];
     final videoId = link.videoId;
-    final thumbnailUrl = videoId != null
-        ? 'https://img.youtube.com/vi/$videoId/hqdefault.jpg'
-        : null;
+
+    if (videoId != null) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: YoutubeEmbedWidget(key: ValueKey(videoId), videoId: videoId),
+      );
+    }
+
+    // videoId가 없는 경우 외부 링크로 fallback
     return GestureDetector(
       onTap: () => launchUrl(Uri.parse(link.url), mode: LaunchMode.externalApplication),
       child: Container(
@@ -653,11 +667,6 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            if (thumbnailUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(thumbnailUrl, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-              ),
             Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.3),

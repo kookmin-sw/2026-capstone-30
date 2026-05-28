@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../utils/youtube_embed_stub.dart'
+    if (dart.library.html) '../utils/youtube_embed_web.dart';
 import '../constants.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
@@ -517,6 +520,7 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
   Future<void> _selectVideo(int index) async {
     final link = widget.links[index];
     setState(() => _selectedIndex = index);
+    if (kIsWeb) return;
     if (link.videoId != null && _controller != null) {
       _controller!.load(link.videoId!);
     } else if (link.videoId == null) {
@@ -529,6 +533,54 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
         }
       }
     }
+  }
+
+  Widget _buildWebYoutubePlayer() {
+    final link = widget.links[_selectedIndex < widget.links.length ? _selectedIndex : 0];
+    final videoId = link.videoId;
+
+    if (videoId != null) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: YoutubeEmbedWidget(key: ValueKey(videoId), videoId: videoId),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(link.url), mode: LaunchMode.externalApplication),
+      child: Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const Icon(Icons.play_circle_fill, color: Colors.white, size: 60),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Text(link.title, style: const TextStyle(color: Colors.white, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -557,6 +609,8 @@ class _YoutubePlayerSectionState extends State<_YoutubePlayerSection> {
               decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
               child: const Center(child: CircularProgressIndicator()),
             )
+          else if (kIsWeb && widget.links.isNotEmpty)
+            _buildWebYoutubePlayer()
           else if (_controller != null)
             YoutubePlayerBuilder(
               player: YoutubePlayer(
