@@ -279,13 +279,15 @@ class _MainNavigatorState extends State<MainNavigator> {
   }
 
   Future<void> _onLogout() async {
-    // 로그아웃 전 FCM 토큰 삭제
     final info = await _storage.getLoginInfo();
     if (info != null) {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
-        try { await _api.deleteFcmToken(info['userId'] as int, token); } catch (_) {}
-      }
+      try {
+        final token = await FirebaseMessaging.instance.getToken()
+            .timeout(const Duration(seconds: 5));
+        if (token != null) {
+          try { await _api.deleteFcmToken(info['userId'] as int, token); } catch (_) {}
+        }
+      } catch (_) {}
     }
     await _storage.logout();
     await _storage.saveIngredients([]);
